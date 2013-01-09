@@ -356,6 +356,14 @@ func getTable(user *admin.Admin) (table []*Route) {
 			fmt.Printf("%v\n", err)
 			return
 		}
+		// If an error field exists, and we have an error, return it
+		if _, ok := response["error"]; ok {
+			if response["error"] != "none" {
+				err = fmt.Errorf(response["error"].(string))
+				fmt.Printf("Error: %v\n", err)
+				return
+			}
+		}
 		//Thanks again to SashaCrofter for the table parsing
 		rawTable := response["routingTable"].([]interface{})
 		for i := range rawTable {
@@ -399,6 +407,7 @@ func pingNode(user *admin.Admin, ping *Ping) (err error) {
 	if err != nil {
 		return
 	}
+
 	ping.Sent++
 	if response.Error == "" {
 		if response.Result == "timeout" {
