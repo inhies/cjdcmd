@@ -146,3 +146,19 @@ Kill will tell cjdns to shutdown and exit.
 	$cjdcmd kill
 	Attempting to connect to cjdns...Connected
 	cjdns is shutting down...
+	
+Troubleshooting
+---------------
+
+### Config File
+
+The default configuration file format has changed numerous times, and as such cjdcmd will probably throw an error if you try to use it with an older version of cjdns. Cjdns also allows the use of grossly out of spec JSON without throwing an error which is fine for cjdns but when other programs try to parse the file it causes issues. 
+
+The current format that cjdcmd supports can be found the [configuration file guide](https://github.com/cjdelisle/cjdns/blob/master/rfcs/configure.md) at the cjdns github. The notable changes between what you might have and what is expected are:
+
+* Ensure there are `[` and `]` in the `"UDPInterface"` and `"ETHInterface"` sections, which you can find an example of [here](https://github.com/cjdelisle/cjdns/blob/master/rfcs/configure.md#connection-interfaces.)
+* Ensure there are commas after each `{"password":"abcdefghijklmnopqrstuvwxyz"}` section, except the last, like [here](https://github.com/cjdelisle/cjdns/blob/master/rfcs/configure.md#incoming-connections) where they are commented out. For example:
+
+	````{"password":"abcdefghijklmnopqrstuvwxyz"},
+	{"password":"ABCDEFGHIJKLMNOPQRSTUVWXYZ"},
+	{"password":"012345678901234567890123456789"}````
