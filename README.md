@@ -47,9 +47,14 @@ Once you have Go installed, installing new programs and packages couldn't be eas
 
     go get github.com/inhies/cjdcmd
 	
-If everything worked you should be returned to your command prompt with no ouput from the above command after a minute or so. To check if it was successful, run `cjdcmd` and see if it displays some information about the program.
+If f you see no output from that command then everything worked with no errors. To verify that it was successful, run `cjdcmd` and see if it displays some information about the program.
 	
 **NOTE:** You may have to be root (use `sudo`) to install Go and cjdcmd.
+
+Updating cjdcmd
+---------------
+
+To update your install of cjdcmd, simply run `go get -u github.com/inhies/cjdcmd` and it will automatically update, build, and install it. Just like when you initially installed cjdcmd, if you see no output from that command then everything worked with no errors.
 	
 Using cjdcmd
 ------------
@@ -147,6 +152,7 @@ Kill will tell cjdns to shutdown and exit.
 	Attempting to connect to cjdns...Connected
 	cjdns is shutting down...
 	
+
 Troubleshooting
 ---------------
 
