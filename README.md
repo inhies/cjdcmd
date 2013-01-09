@@ -47,6 +47,8 @@ Once you have Go installed, installing new programs and packages couldn't be eas
 
     go get github.com/inhies/cjdcmd
 	
+If everything worked you should be returned to your command prompt with no ouput from the above command after a minute or so. To check if it was successful, run `cjdcmd` and see if it displays some information about the program.
+	
 **NOTE:** You may have to be root (use `sudo`) to install Go and cjdcmd.
 	
 Using cjdcmd
