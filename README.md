@@ -28,7 +28,7 @@ If your system isn't listed above, perhaps you can [download pre-compiled binari
 
 #### Configure your folders (optional)
 
-Next you should set up a special directory for all your go sourcecode and compiled programs. This prevents you from having to use `sudo` every time you need to install an updated package or program. This is completely optional, however. I will be giving a shortened version of the information found on [the official site](http://golang.org/doc/code.html#tmp_2)
+Next you should set up a special directory for all your go sourcecode and compiled programs. This is optional, however I recommend it because this will prevent you from having to use `sudo` every time you need to install an updated package or program. I will be giving a shortened version of the information found on [the official site](http://golang.org/doc/code.html#tmp_2)
 
 First, make the folder where you want everything to be stored. I use the /home/inhies/projects/go but you may use whatever you like:
 
