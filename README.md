@@ -47,7 +47,7 @@ Once you have Go installed, installing new programs and packages couldn't be eas
 
     go get github.com/inhies/cjdcmd
 	
-If f you see no output from that command then everything worked with no errors. To verify that it was successful, run `cjdcmd` and see if it displays some information about the program.
+If f you see no output from that command then everything worked with no errors. To verify that it was successful, run `cjdcmd` and see if it displays some information about the program. If it does you are done! cjdcmd has been downloaded, compiled, and installed. You amy now use it by typing `cjdcmd`.
 	
 **NOTE:** You may have to be root (use `sudo`) to install Go and cjdcmd.
 
