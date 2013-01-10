@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	Version = "0.1"
+	Version = "0.2"
 
 	defaultPingTimeout = 10000 //10 seconds
 	defaultPingCount   = 0
@@ -27,12 +27,13 @@ const (
 
 	defaultFile = "/etc/cjdroute.conf"
 
-	pingCmd  = "ping"
-	logCmd   = "log"
-	traceCmd = "traceroute"
-	dumpCmd  = "dump"
-	routeCmd = "route"
-	killCmd  = "kill"
+	pingCmd     = "ping"
+	logCmd      = "log"
+	traceCmd    = "traceroute"
+	dumpCmd     = "dump"
+	routeCmd    = "route"
+	killCmd     = "kill"
+	versionsCmd = "versions"
 
 	magicalLinkConstant = 5366870.0
 )
@@ -146,6 +147,7 @@ func main() {
 	command := os.Args[1]
 
 	//read the config
+	// TODO: check ./cjdroute.conf /etc/cjdroute.conf ~/cjdroute.conf ~/cjdns/cjdroute.conf maybe ~/cjdns/build/cjdroute.conf
 	conf, err := config.LoadMinConfig(File)
 
 	if err != nil || len(conf.Admin.Password) == 0 {
@@ -207,6 +209,9 @@ func main() {
 	}()
 
 	switch command {
+	case versionsCmd:
+		// TODO: ping all nodes in the routing table and get their versions
+		// git log -1 --date=iso --pretty=format:"%ad" <hash>
 	case killCmd:
 		_, err := admin.Core_exit(user)
 		if err != nil {
@@ -220,9 +225,14 @@ func main() {
 		println("cjdns is shutting down...")
 
 	case dumpCmd:
+		// TODO: add flag to show zero link quality routes, by default hide them
 		table := getTable(user)
-		for k, v := range table {
-			fmt.Printf("%d IP: %v -- Version: %d -- Path: %s -- Link: %.0f\n", k, v.IP, v.Version, v.RawPath, v.Link)
+		k := 1
+		for _, v := range table {
+			if v.Link >= 1 {
+				fmt.Printf("%d IP: %v -- Version: %d -- Path: %s -- Link: %.0f\n", k, v.IP, v.Version, v.RawPath, v.Link)
+				k++
+			}
 		}
 
 	case traceCmd:
@@ -268,6 +278,7 @@ func main() {
 		return
 	case pingCmd:
 		// TODO: allow input of IP, hex path with and without dots and leading zeros, and binary path
+		// TODO: allow pinging of entire routing table
 		if len(data) > 0 {
 			if strings.Count(data[0], ":") > 1 {
 				ping.IP = padIPv6(net.ParseIP(data[0]))
