@@ -1,7 +1,7 @@
 cjdcmd
 ======
 
-cjdcmd is a command line tool for interfacing with cjdns. It currently supports only very basic functions however more features are currently in development.
+cjdcmd is a command line tool for interfacing with [cjdns](https://github.com/cjdelisle/cjdns), a mesh network routing engine designed for security, scalability, speed, and ease of use.
 
 Installation
 ------------
