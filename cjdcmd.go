@@ -2,6 +2,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"flag"
 	"fmt"
@@ -131,7 +132,7 @@ func outputPing(Ping *Ping) {
 func main() {
 	//Define the flags, and parse them
 	//Clearly a hack but it works for now
-	//TODO: Re-implement flag parsing so flags can have multiple meanings based on the base command (ping, route, etc)
+	//TODO(inhies): Re-implement flag parsing so flags can have multiple meanings based on the base command (ping, route, etc)
 	if len(os.Args) <= 1 {
 		usage()
 		return
@@ -209,6 +210,7 @@ func main() {
 	}()
 
 	switch command {
+
 	case versionsCmd:
 		// TODO: ping all nodes in the routing table and get their versions
 		// git log -1 --date=iso --pretty=format:"%ad" <hash>
@@ -339,11 +341,154 @@ func main() {
 			fmt.Printf(format, counter, input["time"], input["level"], input["file"], input["line"], input["message"])
 			counter++
 		}
+	case "test":
+
+		table := getTable(user)
+		//for _, v := range table {
+		//	if v.IP == target || v.RawPath == target {
+		//		fmt.Printf("IP: %v -- Version: %d -- Path: %s -- Link: %.0f\n", v.IP, v.Version, v.RawPath, v.Link)
+		//	}
+		//}
+
+		host := data[0] //"fc20:b48d:4ff4:275a:a86f:48d9:2cff:000c"
+		for i := range table {
+
+			if table[i].IP != host {
+				//If host is supplied, and the
+				//IP doesn't match, ignore it.
+				//println("nope")
+				continue
+			}
+			if table[i].Link < 1 {
+				//fmt.Println(table[i].Link)
+				continue
+			}
+			println("next")
+			sPath1 := strings.Replace(table[i].RawPath, ".", "", -1)
+			bPath1, _ := hex.DecodeString(sPath1)
+			fullPath := binary.BigEndian.Uint64(bPath1)
+
+			//hopCount:
+			//recurse:
+			for ii := range table {
+				if ii == i {
+					//Skip the self route
+					continue
+				}
+				//println(table[i].RawPath)
+
+				sPath2 := strings.Replace(table[ii].RawPath, ".", "", -1)
+				bPath2, _ := hex.DecodeString(sPath2)
+				path2 := binary.BigEndian.Uint64(bPath2)
+
+				candPath := path2
+
+				g := 64 - uint64(math.Log2(float64(candPath)))
+				h := uint64(uint64(0xffffffffffffffff) >> g)
+
+				if h&fullPath == h&candPath {
+
+					//hops++
+					fmt.Printf(" %b is a sub-path of\n%b\n\n", candPath, fullPath)
+					//	path1 = path2
+					//break recurse
+					//if hops > maxHops {
+					//	println("something")
+					//	break hopCount
+					//}
+				} else {
+					//fmt.Printf(" %b is not a sub-path of\n%b\n\n", candPath, fullPath)
+				}
+			}
+
+			//fmt.Println(table[i])
+		}
 	default:
 		fmt.Println("Invalid command", command)
 		usage()
 		return
 	}
+}
+
+/*
+case "test":
+		table := getTable(user)
+		host := "fcf1:b5d5:d0b4:c390:9db2:3f5e:d2d2:bff2"
+
+		for _, v := range table {
+			if v.IP == host {
+				sPath1 := strings.Replace(v.RawPath, ".", "", -1)
+				bPath1, _ := hex.DecodeString(sPath1)
+				path := binary.BigEndian.Uint64(bPath1)
+
+				result, err := subPath(table, path)
+				if err != nil {
+					fmt.Println(err)
+				}
+				if result != 0 {
+					println("found  a path")
+				}
+			}
+		}
+
+	default:
+		fmt.Println("Invalid command", command)
+		usage()
+		return
+	}
+}
+*/
+func subPath(table []*Route, fullPath uint64) (candPath uint64, err error) {
+
+	//for i := range table {
+
+	//if table[i].IP != host {
+	//	//If host is supplied, and the
+	//	//IP doesn't match, ignore it.
+	//	//println("nope")
+	//	continue
+	//}
+	//if table[i].Link < 1 {
+	//	//fmt.Println(table[i].Link)
+	//	continue
+	//}
+	//println("next")
+
+	//hopCount:
+	//recurse:
+	for ii := range table {
+
+		//println(table[i].RawPath)
+
+		sPath2 := strings.Replace(table[ii].RawPath, ".", "", -1)
+		bPath2, _ := hex.DecodeString(sPath2)
+		//Read the []byte into a unit64
+		path2 := binary.BigEndian.Uint64(bPath2)
+
+		candPath := path2
+		if candPath == fullPath {
+			//	//Skip the self route
+			continue
+		}
+		g := uint64(64 - math.Min(math.Log2(float64(candPath)), math.Log2(float64(fullPath))))
+		h := uint64(uint64(0xffffffffffffffff) >> g)
+		if h&fullPath == h&candPath {
+
+			//hops++
+			fmt.Printf("%b is a sub-path of\n%b\n\n", candPath, fullPath)
+
+			return candPath, nil
+			//	path1 = path2
+			//break recurse
+			//if hops > maxHops {
+			//	println("something")
+			//	break hopCount
+			//}
+		}
+	}
+	return 0, fmt.Errorf("Not found")
+	//fmt.Println(table[i])
+	//}
 }
 
 // Fills out an IPv6 address to the full 32 bytes
@@ -389,10 +534,9 @@ func getTable(user *admin.Admin) (table []*Route) {
 				//runtime errors.
 				continue
 			}
-			path := string(bPath)
 			table = append(table, &Route{
 				IP:      item["ip"].(string),
-				Path:    path,
+				Path:    string(bPath),
 				RawPath: rPath,
 				RawLink: item["link"].(int64),
 				Link:    float64(item["link"].(int64)) / magicalLinkConstant,
