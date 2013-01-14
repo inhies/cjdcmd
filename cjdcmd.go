@@ -51,7 +51,7 @@ var (
 )
 
 type Ping struct {
-	IP, Version                                  string
+	Target, Version                              string
 	Failed, Percent, Sent, Success               float64
 	CTime, TTime, TTime2, TMin, TAvg, TMax, TDev float64
 }
@@ -121,7 +121,7 @@ func outputPing(Ping *Ping) {
 	}
 	Ping.Percent = (Ping.Failed / Ping.Sent) * 100
 
-	fmt.Println("\n---", Ping.IP, "ping statistics ---")
+	fmt.Println("\n---", Ping.Target, "ping statistics ---")
 	fmt.Printf("%v packets transmitted, %v received, %.2f%% packet loss, time %vms\n", Ping.Sent, Ping.Success, Ping.Percent, Ping.TTime)
 	fmt.Printf("rtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n", Ping.TMin, Ping.TAvg, Ping.TMax, Ping.TDev)
 	fmt.Printf("Target is using cjdns version %v\n", Ping.Version)
@@ -269,21 +269,43 @@ func main() {
 	case pingCmd:
 		// TODO: allow input of IP, hex path with and without dots and leading zeros, and binary path
 		if len(data) > 0 {
+
 			if strings.Count(data[0], ":") > 1 {
-				ping.IP = padIPv6(net.ParseIP(data[0]))
-				if len(ping.IP) != 39 {
+				ping.Target = padIPv6(net.ParseIP(data[0]))
+				if len(ping.Target) != 39 {
 					fmt.Println("Invalid IPv6 address")
 					return
 				}
 			} else if strings.Count(data[0], ".") == 3 {
-				ping.IP = data[0]
-				if len(ping.IP) != 19 {
+				ping.Target = data[0]
+				if len(ping.Target) != 19 {
 					fmt.Println("Invalid cjdns path")
 					return
 				}
 			} else {
-				fmt.Println("Invalid IPv6 address or cjdns path")
-				return
+				addrs, err := net.LookupIP(data[0])
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+
+				var ipv6Found bool
+				for i := range addrs {
+					if addrs[i].To4() == nil {
+						ping.Target = padIPv6(addrs[i])
+						//TODO check if it is a valid cjdns ip
+
+						ipv6Found = true
+						//Break on the first valid ipv6 found, no need to look further
+						break
+					}
+
+				}
+				//we've tested the last ip
+				if !ipv6Found {
+					fmt.Println("No valid ipv6 found")
+					return
+				}
 			}
 		} else {
 			fmt.Println("You must specify an IPv6 address or cjdns path")
@@ -402,7 +424,7 @@ func getTable(user *admin.Admin) (table []*Route) {
 
 // Pings a node and generates statistics
 func pingNode(user *admin.Admin, ping *Ping) (err error) {
-	response, err := admin.RouterModule_pingNode(user, ping.IP, PingTimeout)
+	response, err := admin.RouterModule_pingNode(user, ping.Target, PingTimeout)
 
 	if err != nil {
 		return
@@ -411,10 +433,10 @@ func pingNode(user *admin.Admin, ping *Ping) (err error) {
 	ping.Sent++
 	if response.Error == "" {
 		if response.Result == "timeout" {
-			fmt.Printf("Timeout from %v after %vms\n", ping.IP, response.Time)
+			fmt.Printf("Timeout from %v after %vms\n", ping.Target, response.Time)
 			ping.Failed++
 		} else {
-			fmt.Printf("Reply from %v %vms\n", ping.IP, response.Time)
+			fmt.Printf("Reply from %v %vms\n", ping.Target, response.Time)
 			ping.Success++
 			ping.CTime = float64(response.Time)
 			ping.TTime += ping.CTime
