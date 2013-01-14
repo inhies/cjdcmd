@@ -252,6 +252,9 @@ func main() {
 					fmt.Println("Invalid cjdns path")
 					return
 				}
+			} else if ip, _ := lookup(data[0]); ip != "" {
+				target = ip
+				fmt.Println(ip)
 			} else {
 				fmt.Println("Invalid IPv6 address or cjdns path")
 				return
