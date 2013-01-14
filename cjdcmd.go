@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/inhies/go-cjdns/admin"
 	"github.com/inhies/go-cjdns/config"
+	"github.com/miekg/dns"
 	"math"
 	"net"
 	"os"
@@ -51,7 +52,7 @@ var (
 )
 
 type Ping struct {
-	IP, Version                                  string
+	Target, Version                              string
 	Failed, Percent, Sent, Success               float64
 	CTime, TTime, TTime2, TMin, TAvg, TMax, TDev float64
 }
@@ -121,7 +122,7 @@ func outputPing(Ping *Ping) {
 	}
 	Ping.Percent = (Ping.Failed / Ping.Sent) * 100
 
-	fmt.Println("\n---", Ping.IP, "ping statistics ---")
+	fmt.Println("\n---", Ping.Target, "ping statistics ---")
 	fmt.Printf("%v packets transmitted, %v received, %.2f%% packet loss, time %vms\n", Ping.Sent, Ping.Success, Ping.Percent, Ping.TTime)
 	fmt.Printf("rtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n", Ping.TMin, Ping.TAvg, Ping.TMax, Ping.TDev)
 	fmt.Printf("Target is using cjdns version %v\n", Ping.Version)
@@ -251,6 +252,9 @@ func main() {
 					fmt.Println("Invalid cjdns path")
 					return
 				}
+			} else if ip, _ := lookup(data[0]); ip != "" {
+				target = ip
+				fmt.Println(ip)
 			} else {
 				fmt.Println("Invalid IPv6 address or cjdns path")
 				return
@@ -269,24 +273,27 @@ func main() {
 	case pingCmd:
 		// TODO: allow input of IP, hex path with and without dots and leading zeros, and binary path
 		if len(data) > 0 {
+
 			if strings.Count(data[0], ":") > 1 {
-				ping.IP = padIPv6(net.ParseIP(data[0]))
-				if len(ping.IP) != 39 {
+				ping.Target = padIPv6(net.ParseIP(data[0]))
+				if len(ping.Target) != 39 {
 					fmt.Println("Invalid IPv6 address")
 					return
 				}
 			} else if strings.Count(data[0], ".") == 3 {
-				ping.IP = data[0]
-				if len(ping.IP) != 19 {
+				ping.Target = data[0]
+				if len(ping.Target) != 19 {
 					fmt.Println("Invalid cjdns path")
 					return
 				}
+			} else if ip, _ := lookup(data[0]); ip != "" {
+				ping.Target = ip
 			} else {
-				fmt.Println("Invalid IPv6 address or cjdns path")
+				fmt.Println("Invalid IPv6 address, hostname or cjdns path")
 				return
 			}
 		} else {
-			fmt.Println("You must specify an IPv6 address or cjdns path")
+			fmt.Println("You must specify an IPv6 address, hostname or cjdns path")
 			return
 		}
 
@@ -402,7 +409,7 @@ func getTable(user *admin.Admin) (table []*Route) {
 
 // Pings a node and generates statistics
 func pingNode(user *admin.Admin, ping *Ping) (err error) {
-	response, err := admin.RouterModule_pingNode(user, ping.IP, PingTimeout)
+	response, err := admin.RouterModule_pingNode(user, ping.Target, PingTimeout)
 
 	if err != nil {
 		return
@@ -411,10 +418,10 @@ func pingNode(user *admin.Admin, ping *Ping) (err error) {
 	ping.Sent++
 	if response.Error == "" {
 		if response.Result == "timeout" {
-			fmt.Printf("Timeout from %v after %vms\n", ping.IP, response.Time)
+			fmt.Printf("Timeout from %v after %vms\n", ping.Target, response.Time)
 			ping.Failed++
 		} else {
-			fmt.Printf("Reply from %v %vms\n", ping.IP, response.Time)
+			fmt.Printf("Reply from %v %vms\n", ping.Target, response.Time)
 			ping.Success++
 			ping.CTime = float64(response.Time)
 			ping.TTime += ping.CTime
@@ -442,4 +449,25 @@ func pingNode(user *admin.Admin, ping *Ping) (err error) {
 		return fmt.Errorf(response.Error)
 	}
 	return
+}
+
+// Lookup the ip address using HypeDNS
+func lookup(hostname string) (string, error) {
+	c := new(dns.Client)
+
+	m := new(dns.Msg)
+	m.SetQuestion(dns.Fqdn(hostname), dns.TypeAAAA)
+	m.RecursionDesired = true
+
+	r, _, err := c.Exchange(m, "[fc5d:baa5:61fc:6ffd:9554:67f0:e290:7535]:53")
+	if r == nil {
+		return "", err
+	}
+
+	// Stuff must be in the answer section
+	for _, a := range r.Answer {
+		columns := strings.Fields(a.String()) //column 4 holds the ip address
+		return padIPv6(net.ParseIP(columns[4])), nil
+	}
+	return "", err
 }
