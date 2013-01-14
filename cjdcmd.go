@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/inhies/go-cjdns/admin"
 	"github.com/inhies/go-cjdns/config"
+	"github.com/miekg/dns"
 	"math"
 	"net"
 	"os"
@@ -282,33 +283,14 @@ func main() {
 					fmt.Println("Invalid cjdns path")
 					return
 				}
+			} else if ip, _ := lookup(data[0]); ip != "" {
+				ping.Target = ip
 			} else {
-				addrs, err := net.LookupIP(data[0])
-				if err != nil {
-					fmt.Println(err)
-					return
-				}
-
-				var ipv6Found bool
-				for i := range addrs {
-					if addrs[i].To4() == nil {
-						ping.Target = padIPv6(addrs[i])
-						//TODO check if it is a valid cjdns ip
-
-						ipv6Found = true
-						//Break on the first valid ipv6 found, no need to look further
-						break
-					}
-
-				}
-				//we've tested the last ip
-				if !ipv6Found {
-					fmt.Println("No valid ipv6 found")
-					return
-				}
+				fmt.Println("Invalid IPv6 address, hostname or cjdns path")
+				return
 			}
 		} else {
-			fmt.Println("You must specify an IPv6 address or cjdns path")
+			fmt.Println("You must specify an IPv6 address, hostname or cjdns path")
 			return
 		}
 
@@ -464,4 +446,25 @@ func pingNode(user *admin.Admin, ping *Ping) (err error) {
 		return fmt.Errorf(response.Error)
 	}
 	return
+}
+
+// Lookup the ip address using HypeDNS
+func lookup(hostname string) (string, error) {
+	c := new(dns.Client)
+
+	m := new(dns.Msg)
+	m.SetQuestion(dns.Fqdn(hostname), dns.TypeAAAA)
+	m.RecursionDesired = true
+
+	r, _, err := c.Exchange(m, "[fc5d:baa5:61fc:6ffd:9554:67f0:e290:7535]:53")
+	if r == nil {
+		return "", err
+	}
+
+	// Stuff must be in the answer section
+	for _, a := range r.Answer {
+		columns := strings.Fields(a.String()) //column 4 holds the ip address
+		return padIPv6(net.ParseIP(columns[4])), nil
+	}
+	return "", err
 }
