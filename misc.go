@@ -101,8 +101,8 @@ func setTarget(data []string, usePath bool) (target string, err error) {
 			if err != nil {
 				return
 			}
-			if target == "" {
-				err = fmt.Errorf("Unable to resovle hostname")
+			if ip == "" {
+				err = fmt.Errorf("Unable to resovle hostname. This is usually caused by not having a route to hypedns. Please try again in a few seconds.")
 				return
 			}
 			target = ip

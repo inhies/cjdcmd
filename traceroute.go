@@ -21,11 +21,12 @@ type ByQuality struct{ Routes }
 
 func (s ByQuality) Less(i, j int) bool { return s.Routes[i].RawLink > s.Routes[j].RawLink }
 
+//TODO(inhies): Allow traceroute via path
 func doTraceroute(user *admin.Admin, target string) {
 	table := getTable(user)
 	fmt.Println("Finding all routes to", target)
 
-	count := 1
+	count := 0
 	for i := range table {
 
 		if table[i].IP != target {
@@ -42,7 +43,7 @@ func doTraceroute(user *admin.Admin, target string) {
 		}
 
 		sort.Sort(ByPath{response})
-
+		count++
 		fmt.Printf("\nRoute #%d to target\n", count)
 		for y, p := range response {
 
@@ -67,8 +68,8 @@ func doTraceroute(user *admin.Admin, target string) {
 			}
 			println("")
 		}
-		count++
 	}
+	println("Found", count, "routes")
 }
 
 func getHops(table []*Route, fullPath uint64) (output []*Route, err error) {

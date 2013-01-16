@@ -258,7 +258,7 @@ func main() {
 	case peerCmd:
 		peers := make([]*Route, 0)
 		table := getTable(user)
-
+		sort.Sort(ByQuality{table})
 		fmt.Println("Finding all connected peers")
 
 		for i := range table {
