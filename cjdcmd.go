@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/inhies/go-cjdns/admin"
 	"github.com/inhies/go-cjdns/config"
+	"github.com/miekg/dns"
 	"math"
 	"net"
 	"os"
@@ -18,7 +19,7 @@ import (
 )
 
 const (
-	Version = "0.2"
+	Version = "0.2.1"
 
 	defaultPingTimeout = 5000 //5 seconds
 	defaultPingCount   = 0
@@ -55,7 +56,7 @@ var (
 )
 
 type Ping struct {
-	IP, Version, Response, Error                 string
+	Target, Version, Response, Error             string
 	Failed, Percent, Sent, Success               float64
 	CTime, TTime, TTime2, TMin, TAvg, TMax, TDev float64
 }
@@ -116,13 +117,13 @@ func usage() {
 	println("")
 	println("The commands are:")
 	println("")
-	println("ping <ipv6 address or cjdns routing path>  sends a cjdns ping to the specified node")
-	println("route <ipv6 address or cjdns routing path> prints out all routes to an IP or the IP to a route")
-	println("traceroute <ipv6 addressh> [-t timeout]    performs a traceroute by pinging each known hop to the target on all known paths")
-	println("log [-l level] [-file file] [-line line]   prints cjdns log to stdout")
-	println("peers                                      displays a list of currently connected peers")
-	println("dump                                       dumps the routing table to stdout")
-	println("kill                                       tells cjdns to gracefully exit")
+	println("ping <ipv6 address, hostname, or routing path>     sends a cjdns ping to the specified node")
+	println("route <ipv6 address, hostname, or routing path>    prints out all routes to an IP or the IP to a route")
+	println("traceroute <ipv6 address or hostname> [-t timeout] performs a traceroute by pinging each known hop to the target on all known paths")
+	println("log [-l level] [-file file] [-line line]           prints cjdns log to stdout")
+	println("peers                                              displays a list of currently connected peers")
+	println("dump                                               dumps the routing table to stdout")
+	println("kill                                               tells cjdns to gracefully exit")
 	println("")
 	println("Please use `cjdcmd --help` for a list of flags.")
 }
@@ -139,7 +140,7 @@ func outputPing(Ping *Ping) {
 	}
 	Ping.Percent = (Ping.Failed / Ping.Sent) * 100
 
-	fmt.Println("\n---", Ping.IP, "ping statistics ---")
+	fmt.Println("\n---", Ping.Target, "ping statistics ---")
 	fmt.Printf("%v packets transmitted, %v received, %.2f%% packet loss, time %vms\n", Ping.Sent, Ping.Success, Ping.Percent, Ping.TTime)
 	fmt.Printf("rtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n", Ping.TMin, Ping.TAvg, Ping.TMax, Ping.TDev)
 	fmt.Printf("Target is using cjdns version %v\n", Ping.Version)
@@ -265,12 +266,15 @@ func main() {
 					fmt.Println("Invalid IPv6 address")
 					return
 				}
+			} else if ip, _ := lookup(data[0]); ip != "" {
+				target = ip
+				fmt.Println("Resolved to:", ip)
 			} else {
-				fmt.Println("Invalid IPv6 address")
+				fmt.Println("Invalid IPv6 address or unable to resolve hostname")
 				return
 			}
 		} else {
-			fmt.Println("You must specify an IPv6 address")
+			fmt.Println("You must specify an IPv6 address or hostname")
 			return
 		}
 		table := getTable(user)
@@ -304,7 +308,7 @@ func main() {
 				}
 				for x := 1; x <= 3; x++ {
 					tRoute := &Ping{}
-					tRoute.IP = p.Path
+					tRoute.Target = p.Path
 					err := pingNode(user, tRoute)
 					if err != nil {
 						fmt.Println("Error:", err)
@@ -343,12 +347,15 @@ func main() {
 					fmt.Println("Invalid cjdns path")
 					return
 				}
+			} else if ip, _ := lookup(data[0]); ip != "" {
+				target = ip
+				fmt.Println("Resolved to:", ip)
 			} else {
-				fmt.Println("Invalid IPv6 address or cjdns path")
+				fmt.Println("Invalid IPv6 address, cjdns path, or unable to resolve hostname")
 				return
 			}
 		} else {
-			fmt.Println("You must specify an IPv6 address or cjdns path")
+			fmt.Println("You must specify an IPv6 address, hostname, or cjdns path")
 			return
 		}
 		table := getTable(user)
@@ -365,23 +372,26 @@ func main() {
 		// TODO: allow pinging of entire routing table
 		if len(data) > 0 {
 			if strings.Count(data[0], ":") > 1 {
-				ping.IP = padIPv6(net.ParseIP(data[0]))
-				if len(ping.IP) != 39 {
+				ping.Target = padIPv6(net.ParseIP(data[0]))
+				if len(ping.Target) != 39 {
 					fmt.Println("Invalid IPv6 address")
 					return
 				}
 			} else if strings.Count(data[0], ".") == 3 {
-				ping.IP = data[0]
-				if len(ping.IP) != 19 {
+				ping.Target = data[0]
+				if len(ping.Target) != 19 {
 					fmt.Println("Invalid cjdns path")
 					return
 				}
+			} else if ip, _ := lookup(data[0]); ip != "" {
+				ping.Target = ip
+				fmt.Println("Resolved to:", ip)
 			} else {
-				fmt.Println("Invalid IPv6 address or cjdns path")
+				fmt.Println("Invalid IPv6 address, cjdns path, or unable to resolve hostname")
 				return
 			}
 		} else {
-			fmt.Println("You must specify an IPv6 address or cjdns path")
+			fmt.Println("You must specify an IPv6 address, hostname or cjdns path")
 			return
 		}
 
@@ -390,7 +400,7 @@ func main() {
 			for i := 1; i <= PingCount; i++ {
 				err := pingNode(user, ping)
 				if err != nil {
-					fmt.Println(err)
+					//fmt.Println(err)
 					return
 				}
 				println(ping.Response)
@@ -400,7 +410,7 @@ func main() {
 			for {
 				err := pingNode(user, ping)
 				if err != nil {
-					fmt.Println(err)
+					//fmt.Println(err)
 					return
 				}
 				println(ping.Response)
@@ -490,35 +500,6 @@ func getHops(table []*Route, fullPath uint64) (output []*Route, err error) {
 	return
 }
 
-/*
-case "test":
-		table := getTable(user)
-		host := "fcf1:b5d5:d0b4:c390:9db2:3f5e:d2d2:bff2"
-
-		for _, v := range table {
-			if v.IP == host {
-				sPath1 := strings.Replace(v.RawPath, ".", "", -1)
-				bPath1, _ := hex.DecodeString(sPath1)
-				path := binary.BigEndian.Uint64(bPath1)
-
-				result, err := subPath(table, path)
-				if err != nil {
-					fmt.Println(err)
-				}
-				if result != 0 {
-					println("found  a path")
-				}
-			}
-		}
-
-	default:
-		fmt.Println("Invalid command", command)
-		usage()
-		return
-	}
-}
-*/
-
 // Fills out an IPv6 address to the full 32 bytes
 func padIPv6(ip net.IP) string {
 	raw := hex.EncodeToString(ip)
@@ -531,9 +512,9 @@ func padIPv6(ip net.IP) string {
 
 // Dumps the entire routing table and structures it
 func getTable(user *admin.Admin) (table []*Route) {
-	table = make([]*Route, 0)
 	page := 0
 	var more int64
+	table = make([]*Route, 0)
 	for more = 1; more != 0; page++ {
 		response, err := admin.NodeStore_dumpTable(user, page)
 		if err != nil {
@@ -555,7 +536,6 @@ func getTable(user *admin.Admin) (table []*Route) {
 			rPath := item["path"].(string)
 			sPath := strings.Replace(rPath, ".", "", -1)
 			bPath, err := hex.DecodeString(sPath)
-
 			if err != nil || len(bPath) != 8 {
 				//If we get an error, or the
 				//path is not 64 bits, discard.
@@ -587,7 +567,7 @@ func getTable(user *admin.Admin) (table []*Route) {
 
 // Pings a node and generates statistics
 func pingNode(user *admin.Admin, ping *Ping) (err error) {
-	response, err := admin.RouterModule_pingNode(user, ping.IP, PingTimeout)
+	response, err := admin.RouterModule_pingNode(user, ping.Target, PingTimeout)
 
 	if err != nil {
 		return
@@ -596,11 +576,11 @@ func pingNode(user *admin.Admin, ping *Ping) (err error) {
 	ping.Sent++
 	if response.Error == "" {
 		if response.Result == "timeout" {
-			ping.Response = fmt.Sprintf("Timeout from %v after %vms", ping.IP, response.Time)
+			ping.Response = fmt.Sprintf("Timeout from %v after %vms", ping.Target, response.Time)
 			ping.Error = "timeout"
 			ping.Failed++
 		} else {
-			ping.Response = fmt.Sprintf("Reply from %v %vms", ping.IP, response.Time)
+			ping.Response = fmt.Sprintf("Reply from %v %vms", ping.Target, response.Time)
 			ping.Success++
 			ping.CTime = float64(response.Time)
 			ping.TTime += ping.CTime
@@ -628,6 +608,27 @@ func pingNode(user *admin.Admin, ping *Ping) (err error) {
 		err = fmt.Errorf(response.Error)
 		ping.Error = response.Error
 		return
+	}
+	return
+}
+
+// Lookup the ip address using HypeDNS
+func lookup(hostname string) (response string, err error) {
+	c := new(dns.Client)
+
+	m := new(dns.Msg)
+	m.SetQuestion(dns.Fqdn(hostname), dns.TypeAAAA)
+	m.RecursionDesired = true
+
+	r, _, err := c.Exchange(m, "[fc5d:baa5:61fc:6ffd:9554:67f0:e290:7535]:53")
+	if r == nil || err != nil {
+		return
+	}
+
+	// Stuff must be in the answer section
+	for _, a := range r.Answer {
+		columns := strings.Fields(a.String()) //column 4 holds the ip address
+		return padIPv6(net.ParseIP(columns[4])), nil
 	}
 	return
 }
