@@ -2,6 +2,7 @@
 package main
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"flag"
 	"fmt"
@@ -12,13 +13,14 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"sort"
 	"strings"
 )
 
 const (
-	Version = "0.1"
+	Version = "0.2"
 
-	defaultPingTimeout = 10000 //10 seconds
+	defaultPingTimeout = 5000 //5 seconds
 	defaultPingCount   = 0
 
 	defaultLogLevel    = "DEBUG"
@@ -27,12 +29,14 @@ const (
 
 	defaultFile = "/etc/cjdroute.conf"
 
-	pingCmd  = "ping"
-	logCmd   = "log"
-	traceCmd = "traceroute"
-	dumpCmd  = "dump"
-	routeCmd = "route"
-	killCmd  = "kill"
+	pingCmd     = "ping"
+	logCmd      = "log"
+	traceCmd    = "traceroute"
+	peerCmd     = "peers"
+	dumpCmd     = "dump"
+	routeCmd    = "route"
+	killCmd     = "kill"
+	versionsCmd = "versions"
 
 	magicalLinkConstant = 5366870.0
 )
@@ -51,31 +55,39 @@ var (
 )
 
 type Ping struct {
-	IP, Version                                  string
+	IP, Version, Response, Error                 string
 	Failed, Percent, Sent, Success               float64
 	CTime, TTime, TTime2, TMin, TAvg, TMax, TDev float64
 }
 type Route struct {
 	IP      string
 	Path    string
-	RawPath string
-	RawLink int64
+	RawPath uint64
 	Link    float64
+	RawLink int64
 	Version int64
 }
+type Routes []*Route
+
+func (s Routes) Len() int      { return len(s) }
+func (s Routes) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+
+type ByPath struct{ Routes }
+
+func (s ByPath) Less(i, j int) bool { return s.Routes[i].RawPath < s.Routes[j].RawPath }
 
 func init() {
 
 	fs = flag.NewFlagSet("cjdcmd", flag.ExitOnError)
 	const (
-		usagePingTimeout = "[ping] specify the time in milliseconds cjdns should wait for a response"
-		usagePingCount   = "[ping] specify the number of packets to send"
+		usagePingTimeout = "[ping][traceroute] specify the time in milliseconds cjdns should wait for a response"
+		usagePingCount   = "[ping][traceroute] specify the number of packets to send"
 
 		usageLogLevel    = "[log] specify the logging level to use"
 		usageLogFile     = "[log] specify the cjdns source file you wish to see log output from"
 		usageLogFileLine = "[log] specify the cjdns source file line to log"
 
-		usageFile = "the cjdroute configuration file to use, edit, or view"
+		usageFile = "[all] the cjdroute.conf configuration file to use, edit, or view"
 	)
 	fs.StringVar(&File, "file", defaultFile, usageFile)
 	fs.StringVar(&File, "f", defaultFile, usageFile+" (shorthand)")
@@ -96,13 +108,19 @@ func init() {
 func usage() {
 	println("cjdcmd version ", Version)
 	println("")
+	println("cjdcmd expects your cjdroute.conf to be at /etc/cjdroute.conf however you may specify")
+	println("where to look with the -f or -file flags. It is recommended to make a symlink to your config")
+	println("and place it at /etc/cjdroute to save on typing")
+	println("")
 	println("Usage: cjdcmd command [arguments]")
 	println("")
 	println("The commands are:")
 	println("")
 	println("ping <ipv6 address or cjdns routing path>  sends a cjdns ping to the specified node")
 	println("route <ipv6 address or cjdns routing path> prints out all routes to an IP or the IP to a route")
+	println("traceroute <ipv6 addressh> [-t timeout]    performs a traceroute by pinging each known hop to the target on all known paths")
 	println("log [-l level] [-file file] [-line line]   prints cjdns log to stdout")
+	println("peers                                      displays a list of currently connected peers")
 	println("dump                                       dumps the routing table to stdout")
 	println("kill                                       tells cjdns to gracefully exit")
 	println("")
@@ -130,7 +148,7 @@ func outputPing(Ping *Ping) {
 func main() {
 	//Define the flags, and parse them
 	//Clearly a hack but it works for now
-	//TODO: Re-implement flag parsing so flags can have multiple meanings based on the base command (ping, route, etc)
+	//TODO(inhies): Re-implement flag parsing so flags can have multiple meanings based on the base command (ping, route, etc)
 	if len(os.Args) <= 1 {
 		usage()
 		return
@@ -143,9 +161,13 @@ func main() {
 		fs.Parse(os.Args[2:])
 	}
 
+	//TODO(inhies): check argv[0] for trailing commands.
+	//For example, to run ctraceroute:
+	//ln -s /path/to/cjdcmd /usr/bin/ctraceroute like things
 	command := os.Args[1]
 
 	//read the config
+	// TODO: check ./cjdroute.conf /etc/cjdroute.conf ~/cjdroute.conf ~/cjdns/cjdroute.conf maybe ~/cjdns/build/cjdroute.conf
 	conf, err := config.LoadMinConfig(File)
 
 	if err != nil || len(conf.Admin.Password) == 0 {
@@ -207,6 +229,10 @@ func main() {
 	}()
 
 	switch command {
+
+	case versionsCmd:
+		// TODO: ping all nodes in the routing table and get their versions
+		// git log -1 --date=iso --pretty=format:"%ad" <hash>
 	case killCmd:
 		_, err := admin.Core_exit(user)
 		if err != nil {
@@ -220,14 +246,80 @@ func main() {
 		println("cjdns is shutting down...")
 
 	case dumpCmd:
+		// TODO: add flag to show zero link quality routes, by default hide them
 		table := getTable(user)
-		for k, v := range table {
-			fmt.Printf("%d IP: %v -- Version: %d -- Path: %s -- Link: %.0f\n", k, v.IP, v.Version, v.RawPath, v.Link)
+		k := 1
+		for _, v := range table {
+			if v.Link >= 1 {
+				fmt.Printf("%d IP: %v -- Version: %d -- Path: %s -- Link: %.0f\n", k, v.IP, v.Version, v.Path, v.Link)
+				k++
+			}
 		}
 
 	case traceCmd:
-		println("Doh! This really needs to get added...")
+		var target string
+		if len(data) > 0 {
+			if strings.Count(data[0], ":") > 1 {
+				target = padIPv6(net.ParseIP(data[0]))
+				if len(target) != 39 {
+					fmt.Println("Invalid IPv6 address")
+					return
+				}
+			} else {
+				fmt.Println("Invalid IPv6 address")
+				return
+			}
+		} else {
+			fmt.Println("You must specify an IPv6 address")
+			return
+		}
+		table := getTable(user)
+		fmt.Println("Finding all routes to", target)
 
+		count := 1
+		for i := range table {
+
+			if table[i].IP != target {
+				continue
+			}
+
+			if table[i].Link < 1 {
+				continue
+			}
+
+			response, err := getHops(table, table[i].RawPath)
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			sort.Sort(ByPath{response})
+
+			fmt.Printf("\nRoute #%d to target\n", count)
+			for y, p := range response {
+
+				fmt.Printf("IP: %v -- Version: %d -- Path: %s -- Link: %.0f -- Time:", p.IP, p.Version, p.Path, p.Link)
+				if y == 0 {
+					fmt.Printf(" Skipping ourself\n")
+					continue
+				}
+				for x := 1; x <= 3; x++ {
+					tRoute := &Ping{}
+					tRoute.IP = p.Path
+					err := pingNode(user, tRoute)
+					if err != nil {
+						fmt.Println("Error:", err)
+						return
+					}
+					if tRoute.Error == "timeout" {
+						fmt.Printf("   *  ")
+					} else {
+						fmt.Printf(" %vms", tRoute.TTime)
+					}
+				}
+				println("")
+			}
+			count++
+		}
 	case "memory":
 		println("Bye bye cjdns! This command causes a crash...")
 		response, err := admin.Memory(user)
@@ -261,13 +353,16 @@ func main() {
 		}
 		table := getTable(user)
 		for _, v := range table {
-			if v.IP == target || v.RawPath == target {
-				fmt.Printf("IP: %v -- Version: %d -- Path: %s -- Link: %.0f\n", v.IP, v.Version, v.RawPath, v.Link)
+			if v.IP == target || v.Path == target {
+				if v.Link > 1 {
+					fmt.Printf("IP: %v -- Version: %d -- Path: %s -- Link: %.0f\n", v.IP, v.Version, v.Path, v.Link)
+				}
 			}
 		}
 		return
 	case pingCmd:
 		// TODO: allow input of IP, hex path with and without dots and leading zeros, and binary path
+		// TODO: allow pinging of entire routing table
 		if len(data) > 0 {
 			if strings.Count(data[0], ":") > 1 {
 				ping.IP = padIPv6(net.ParseIP(data[0]))
@@ -298,6 +393,7 @@ func main() {
 					fmt.Println(err)
 					return
 				}
+				println(ping.Response)
 			}
 		} else {
 			// ping until we're told otherwise
@@ -307,6 +403,7 @@ func main() {
 					fmt.Println(err)
 					return
 				}
+				println(ping.Response)
 			}
 		}
 		outputPing(ping)
@@ -328,12 +425,99 @@ func main() {
 			fmt.Printf(format, counter, input["time"], input["level"], input["file"], input["line"], input["message"])
 			counter++
 		}
+
+	case peerCmd:
+		peers := make([]*Route, 0)
+		table := getTable(user)
+
+		fmt.Println("Finding all connected peers")
+
+		for i := range table {
+
+			if table[i].Link < 1 {
+				continue
+			}
+			if table[i].RawPath == 1 {
+				continue
+			}
+			response, err := getHops(table, table[i].RawPath)
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			sort.Sort(ByPath{response})
+
+			var peer *Route
+			if len(response) > 1 {
+				peer = response[1]
+			} else {
+				peer = response[0]
+			}
+
+			found := false
+			for _, p := range peers {
+				if p == peer {
+					found = true
+					break
+				}
+			}
+
+			if !found {
+				peers = append(peers, peer)
+			}
+		}
+		for _, p := range peers {
+			fmt.Printf("IP: %v -- Path: %s -- Link: %.0f\n", p.IP, p.Path, p.Link)
+		}
 	default:
 		fmt.Println("Invalid command", command)
 		usage()
 		return
 	}
 }
+
+func getHops(table []*Route, fullPath uint64) (output []*Route, err error) {
+	for i := range table {
+		candPath := table[i].RawPath
+
+		g := 64 - uint64(math.Log2(float64(candPath)))
+		h := uint64(uint64(0xffffffffffffffff) >> g)
+
+		if h&fullPath == h&candPath {
+			output = append(output, table[i])
+		}
+	}
+	return
+}
+
+/*
+case "test":
+		table := getTable(user)
+		host := "fcf1:b5d5:d0b4:c390:9db2:3f5e:d2d2:bff2"
+
+		for _, v := range table {
+			if v.IP == host {
+				sPath1 := strings.Replace(v.RawPath, ".", "", -1)
+				bPath1, _ := hex.DecodeString(sPath1)
+				path := binary.BigEndian.Uint64(bPath1)
+
+				result, err := subPath(table, path)
+				if err != nil {
+					fmt.Println(err)
+				}
+				if result != 0 {
+					println("found  a path")
+				}
+			}
+		}
+
+	default:
+		fmt.Println("Invalid command", command)
+		usage()
+		return
+	}
+}
+*/
 
 // Fills out an IPv6 address to the full 32 bytes
 func padIPv6(ip net.IP) string {
@@ -347,9 +531,9 @@ func padIPv6(ip net.IP) string {
 
 // Dumps the entire routing table and structures it
 func getTable(user *admin.Admin) (table []*Route) {
+	table = make([]*Route, 0)
 	page := 0
 	var more int64
-	table = make([]*Route, 0)
 	for more = 1; more != 0; page++ {
 		response, err := admin.NodeStore_dumpTable(user, page)
 		if err != nil {
@@ -371,6 +555,7 @@ func getTable(user *admin.Admin) (table []*Route) {
 			rPath := item["path"].(string)
 			sPath := strings.Replace(rPath, ".", "", -1)
 			bPath, err := hex.DecodeString(sPath)
+
 			if err != nil || len(bPath) != 8 {
 				//If we get an error, or the
 				//path is not 64 bits, discard.
@@ -378,11 +563,11 @@ func getTable(user *admin.Admin) (table []*Route) {
 				//runtime errors.
 				continue
 			}
-			path := string(bPath)
+			path := binary.BigEndian.Uint64(bPath)
 			table = append(table, &Route{
 				IP:      item["ip"].(string),
-				Path:    path,
-				RawPath: rPath,
+				RawPath: path,
+				Path:    rPath,
 				RawLink: item["link"].(int64),
 				Link:    float64(item["link"].(int64)) / magicalLinkConstant,
 				Version: item["version"].(int64),
@@ -411,10 +596,11 @@ func pingNode(user *admin.Admin, ping *Ping) (err error) {
 	ping.Sent++
 	if response.Error == "" {
 		if response.Result == "timeout" {
-			fmt.Printf("Timeout from %v after %vms\n", ping.IP, response.Time)
+			ping.Response = fmt.Sprintf("Timeout from %v after %vms", ping.IP, response.Time)
+			ping.Error = "timeout"
 			ping.Failed++
 		} else {
-			fmt.Printf("Reply from %v %vms\n", ping.IP, response.Time)
+			ping.Response = fmt.Sprintf("Reply from %v %vms", ping.IP, response.Time)
 			ping.Success++
 			ping.CTime = float64(response.Time)
 			ping.TTime += ping.CTime
@@ -439,7 +625,9 @@ func pingNode(user *admin.Admin, ping *Ping) (err error) {
 		}
 	} else {
 		ping.Failed++
-		return fmt.Errorf(response.Error)
+		err = fmt.Errorf(response.Error)
+		ping.Error = response.Error
+		return
 	}
 	return
 }

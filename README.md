@@ -1,7 +1,7 @@
 cjdcmd
 ======
 
-cjdcmd is a command line tool for interfacing with cjdns. It currently supports only very basic functions however more features are currently in development.
+cjdcmd is a command line tool for interfacing with [cjdns](https://github.com/cjdelisle/cjdns), a mesh network routing engine designed for security, scalability, speed, and ease of use.
 
 Installation
 ------------
@@ -47,7 +47,7 @@ Once you have Go installed, installing new programs and packages couldn't be eas
 
     go get github.com/inhies/cjdcmd
 	
-If f you see no output from that command then everything worked with no errors. To verify that it was successful, run `cjdcmd` and see if it displays some information about the program.
+If f you see no output from that command then everything worked with no errors. To verify that it was successful, run `cjdcmd` and see if it displays some information about the program. If it does you are done! cjdcmd has been downloaded, compiled, and installed. You amy now use it by typing `cjdcmd`.
 	
 **NOTE:** You may have to be root (use `sudo`) to install Go and cjdcmd.
 
