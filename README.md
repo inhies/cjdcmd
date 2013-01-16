@@ -61,9 +61,11 @@ Using cjdcmd
 
 Once you have cjdcmd installed you can run it without any arguments to get a list of commands or run it with the flag `--help` to get a list of all support options. Currently cjdcmd offers the following commands:
     
-	ping  <cjdns IPv6 address or cjdns path (obtained with route command)>
-	route <cjdns IPv6 address or cjdns path (obtained with route command)>
-	log
+	ping  <cjdns IPv6 address, hostname, or cjdns path (obtained with route command)>
+	route <cjdns IPv6 address, hostname, or cjdns path (obtained with route command)>
+	traceroute <cjdns IPv6 address or hostname>
+	log [-l level] [-file file] [-line line]
+	peers
 	dump
 	kill
 
@@ -73,7 +75,7 @@ Once you have cjdcmd installed you can run it without any arguments to get a lis
 
 Ping will send a cjdns ping packet to the specified node. Note that this is not the same as an ICMP ping packet like that which is sent with the `ping` and `ping6` utilities; it is a special cjdns switch-level packet. The node will reply with it's version which is the SHA1 hash of the git commit it was built on. 
 
-#### Sample Output:
+#### Sample Output
 
 	$cjdcmd ping -c 4 -t 800 fcf9:11b1:c252:6176:0550:0c59:2bb5:229a
 	Attempting to connect to cjdns...Connected
@@ -93,7 +95,7 @@ Route will either print out all known routes to a specified IPv6 address or the 
 
 Route is useful because it shows you the many different paths that are available to get to one end node. You can then take each of those paths and use the ping command to check for connectivity. This will be further exapnded upon in the future with a `traceroute` command.
 
-#### Sample Output:
+#### Sample Output
 
 With an IPv6 address:
 
@@ -109,6 +111,32 @@ Or with a path:
 	Attempting to connect to cjdns...Connected
 	IP: fcf9:11b1:c252:6176:0550:0c59:2bb5:229a -- Version: 1 -- Path: 0000.0000.0000.001f -- Link: 400
 
+### Traceroute
+
+Traceroute will take all the possible routes to a specific target and then ping each known hop along the way. This will display exactly the path your packets take through the network along any given path.
+
+#### Sample Output
+
+	$cjdcmd traceroute fcf9:11b1:c252:6176:0550:0c59:2bb5:229a
+	Attempting to connect to cjdns...Connected
+	Finding all routes to fcf9:11b1:c252:6176:0550:0c59:2bb5:229a
+	
+	Route #1 to target
+	IP: fc72:7d84:bac7:3ac2:60cb:e1b3:9025:7266 -- Version: 1 -- Path: 0000.0000.0000.0001 -- Link: 800 -- Time: Skipping ourself
+	IP: fc2e:c969:bc94:e8e1:bcef:d155:c13b:ff9f -- Version: 1 -- Path: 0000.0000.0000.00a2 -- Link: 400 -- Time: 1ms 1ms 3ms
+	IP: fcf9:11b1:c252:6176:0550:0c59:2bb5:229a -- Version: 0 -- Path: 0000.0000.0000.4d22 -- Link: 303 -- Time: 757ms 815ms 797ms
+	
+	Route #2 to target
+	IP: fc72:7d84:bac7:3ac2:60cb:e1b3:9025:7266 -- Version: 1 -- Path: 0000.0000.0000.0001 -- Link: 800 -- Time: Skipping ourself
+	IP: fcef:c7a9:792a:45b3:741f:59aa:9adf:4081 -- Version: 1 -- Path: 0000.0000.0000.0019 -- Link: 402 -- Time: 771ms 781ms 794ms
+	IP: fc2e:c969:bc94:e8e1:bcef:d155:c13b:ff9f -- Version: 0 -- Path: 0000.0000.0000.0199 -- Link: 174 -- Time: 1600ms 1654ms 1504ms
+	IP: fcf9:11b1:c252:6176:0550:0c59:2bb5:229a -- Version: 1 -- Path: 0000.0000.0000.1f99 -- Link: 136 -- Time: 2367ms 2284ms 2316ms
+	
+	Route #3 to target
+	IP: fc72:7d84:bac7:3ac2:60cb:e1b3:9025:7266 -- Version: 1 -- Path: 0000.0000.0000.0001 -- Link: 800 -- Time: Skipping ourself
+	IP: fcf9:11b1:c252:6176:0550:0c59:2bb5:229a -- Version: 1 -- Path: 0000.0000.0000.001f -- Link: 366 -- Time: 796ms 844ms 803ms
+	Found 3 routes
+
 ### Log
 
 Log will begin outputting log information from cjdns. You can optionally specify which level of information to receive which is either Debug, Info, Warn, Error,  or Critical. It also allows you to filter by a specific source code file or a specific line number from the source code. You can use any combination of these options to get the output that you desire. 
@@ -123,25 +151,38 @@ Log will begin outputting log information from cjdns. You can optionally specify
 	4 1357729795 DEBUG RouterModule.c:1137 Ping fc5d:baa5:61fc:6ffd:9554:67f0:e290:7535@0000.0004.fccf.025f
 	5 1357729795 DEBUG CryptoAuth.c:568 No traffic in [76] seconds, resetting connection.
 
+### Peers
+
+Peers will list the peers you are directly connected to. This will show both other nodes you connect with and nodes that connect to you. 
+
+#### Sample Output
+
+	$cjdcmd peers
+	Attempting to connect to cjdns...Connected
+	Finding all connected peers
+	IP: fc8e:753b:2e7f:2575:c895:80d1:d67d:0000 -- Path: 0000.0000.0000.0017 -- Link: 764
+	IP: fcd6:b2a5:e3cc:d78d:fc69:a90f:4bf7:4a02 -- Path: 0000.0000.0000.001b -- Link: 764
+	IP: fcef:c7a9:792a:45b3:741f:59aa:9adf:4081 -- Path: 0000.0000.0000.0019 -- Link: 484
+	IP: fc99:02f4:7795:c86c:36bd:63ae:cf49:d459 -- Path: 0000.0000.0000.001d -- Link: 454
+	IP: fc2e:c969:bc94:e8e1:bcef:d155:c13b:ff9f -- Path: 0000.0000.0000.00a2 -- Link: 400
+	IP: fcf9:11b1:c252:6176:0550:0c59:2bb5:229a -- Path: 0000.0000.0000.001f -- Link: 400
 
 ### Dump
 
-Dump will print the routing table to stdout, complete with IPv6 of the target node, the path to that node (which can be used with the ping command), and human-readable cjdns link quality. Note that a quality of 0 means the path is dead and should not be used.
+Dump will print the routing table to stdout, complete with IPv6 of the target node, the path to that node (which can be used with the ping command), and human-readable cjdns link quality. Only working paths with a link quality greater than 0 are shown.
 
 #### Sample Output:
 
 	$cjdcmd dump
 	Attempting to connect to cjdns...Connected
-	0 IP: fc72:7d84:bac7:3ac2:60cb:e1b3:9025:7266 -- Version: 1 -- Path: 0000.0000.0000.0001 -- Link: 800
-	1 IP: fcd9:6a75:6c9c:65dd:318f:26f0:1319:d0d3 -- Version: 1 -- Path: 0000.0000.0000.0b6b -- Link: 367
-	2 IP: fcda:947a:ee48:802f:65ed:7e8a:2fb6:bf6b -- Version: 1 -- Path: 0000.0000.2894.c80b -- Link: 0
-	3 IP: fcf2:4de8:ffa1:9679:821a:b0c9:961f:5b98 -- Version: 1 -- Path: 0000.0000.0059.186b -- Link: 363
+	1 IP: fc72:7d84:bac7:3ac2:60cb:e1b3:9025:7266 -- Version: 1 -- Path: 0000.0000.0000.0001 -- Link: 800
+	2 IP: fcd8:b768:9762:9808:3d3c:5cac:344c:5261 -- Version: 1 -- Path: 0000.0000.0053.4aad -- Link: 434
+	3 IP: fcb1:4025:8840:cf76:c4b1:3202:4d96:c100 -- Version: 0 -- Path: 0000.0000.0000.0a67 -- Link: 431
 	...
-	487 IP: fcac:541e:9c5c:9ddc:f648:962a:2892:e33e -- Version: 0 -- Path: 0000.011d.1f72.b25f -- Link: 0
-	488 IP: fc21:103b:fbc8:828c:810c:37b6:3b1e:9615 -- Version: 0 -- Path: 0000.0004.cf72.b25f -- Link: 0
-	489 IP: fc74:b146:a580:2be9:6285:7af3:6a56:2b7b -- Version: 1 -- Path: 0000.0000.0757.1eab -- Link: 0
-	490 IP: fca5:9fe0:3fa2:d576:71e6:8373:7aeb:ea11 -- Version: 1 -- Path: 0000.0000.0000.484b -- Link: 0
-	
+	142 IP: fcc8:8bbc:51ae:3dbb:bce9:12a1:e563:3b8a -- Version: 1 -- Path: 0000.0000.0000.e67f -- Link: 10
+	143 IP: fc66:dfa4:30e8:1844:b0b8:e26e:f120:8fc8 -- Version: 1 -- Path: 0000.aa64.f94b.6eab -- Link: 9
+	144 IP: fc1e:af9f:b436:7aa0:5bce:0dfc:0cba:c713 -- Version: 1 -- Path: 0000.8a0a.f94b.6eab -- Link: 9
+
 ### Kill
 
 Kill will tell cjdns to shutdown and exit. 
