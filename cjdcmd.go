@@ -4,6 +4,7 @@ package main
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/inhies/go-cjdns/admin"
@@ -13,6 +14,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -40,6 +42,10 @@ const (
 	versionsCmd = "versions"
 
 	magicalLinkConstant = 5366870.0
+
+	ipRegex   = "^fc[a-f0-9]{1,2}:([a-f0-9]{0,4}:){2,6}[a-f0-9]{1,4}$"
+	pathRegex = "([0-9a-f]{4}\\.){3}[0-9a-f]{4}"
+	hostRegex = "^([a-zA-Z0-9]([a-zA-Z0-9\\-\\.]{0,}[a-zA-Z0-9]))$"
 )
 
 var (
@@ -258,32 +264,18 @@ func main() {
 		}
 
 	case traceCmd:
-		var target string
-		if len(data) > 0 {
-			if strings.Count(data[0], ":") > 1 {
-				target = padIPv6(net.ParseIP(data[0]))
-				if len(target) != 39 {
-					fmt.Println("Invalid IPv6 address")
-					return
-				}
-			} else if ip, _ := lookup(data[0]); ip != "" {
-				target = ip
-				fmt.Println("Resolved to:", ip)
-			} else {
-				fmt.Println("Invalid IPv6 address or unable to resolve hostname")
-				return
-			}
-		} else {
-			fmt.Println("You must specify an IPv6 address or hostname")
+		if err := setTarget(ping, data[0], false); err != nil {
+			fmt.Println(err)
 			return
 		}
+
 		table := getTable(user)
-		fmt.Println("Finding all routes to", target)
+		fmt.Println("Finding all routes to", ping.Target)
 
 		count := 1
 		for i := range table {
 
-			if table[i].IP != target {
+			if table[i].IP != ping.Target {
 				continue
 			}
 
@@ -333,34 +325,14 @@ func main() {
 		}
 		fmt.Println(response)
 	case routeCmd:
-		var target string
-		if len(data) > 0 {
-			if strings.Count(data[0], ":") > 1 {
-				target = padIPv6(net.ParseIP(data[0]))
-				if len(target) != 39 {
-					fmt.Println("Invalid IPv6 address")
-					return
-				}
-			} else if strings.Count(data[0], ".") == 3 {
-				target = data[0]
-				if len(target) != 19 {
-					fmt.Println("Invalid cjdns path")
-					return
-				}
-			} else if ip, _ := lookup(data[0]); ip != "" {
-				target = ip
-				fmt.Println("Resolved to:", ip)
-			} else {
-				fmt.Println("Invalid IPv6 address, cjdns path, or unable to resolve hostname")
-				return
-			}
-		} else {
-			fmt.Println("You must specify an IPv6 address, hostname, or cjdns path")
+		if err := setTarget(ping, data[0], true); err != nil {
+			fmt.Println(err)
 			return
 		}
+
 		table := getTable(user)
 		for _, v := range table {
-			if v.IP == target || v.Path == target {
+			if v.IP == ping.Target || v.Path == ping.Target {
 				if v.Link > 1 {
 					fmt.Printf("IP: %v -- Version: %d -- Path: %s -- Link: %.0f\n", v.IP, v.Version, v.Path, v.Link)
 				}
@@ -368,30 +340,11 @@ func main() {
 		}
 		return
 	case pingCmd:
+
 		// TODO: allow input of IP, hex path with and without dots and leading zeros, and binary path
 		// TODO: allow pinging of entire routing table
-		if len(data) > 0 {
-			if strings.Count(data[0], ":") > 1 {
-				ping.Target = padIPv6(net.ParseIP(data[0]))
-				if len(ping.Target) != 39 {
-					fmt.Println("Invalid IPv6 address")
-					return
-				}
-			} else if strings.Count(data[0], ".") == 3 {
-				ping.Target = data[0]
-				if len(ping.Target) != 19 {
-					fmt.Println("Invalid cjdns path")
-					return
-				}
-			} else if ip, _ := lookup(data[0]); ip != "" {
-				ping.Target = ip
-				fmt.Println("Resolved to:", ip)
-			} else {
-				fmt.Println("Invalid IPv6 address, cjdns path, or unable to resolve hostname")
-				return
-			}
-		} else {
-			fmt.Println("You must specify an IPv6 address, hostname or cjdns path")
+		if err := setTarget(ping, data[0], true); err != nil {
+			fmt.Println(err)
 			return
 		}
 
@@ -631,4 +584,38 @@ func lookup(hostname string) (response string, err error) {
 		return padIPv6(net.ParseIP(columns[4])), nil
 	}
 	return
+}
+
+//set the ping.Target if it is valid
+func setTarget(ping *Ping, input string, usePath bool) error {
+	if input != "" {
+		validIp, _ := regexp.MatchString(ipRegex, input)
+		validPath, _ := regexp.MatchString(pathRegex, input)
+		validHost, _ := regexp.MatchString(hostRegex, input)
+
+		if validIp {
+			ping.Target = padIPv6(net.ParseIP(input))
+			return nil
+
+		} else if validPath && usePath {
+			ping.Target = input
+			return nil
+
+		} else if validHost {
+			ip, err := lookup(input)
+			if err != nil {
+				return err
+			}
+			ping.Target = ip
+			return nil
+
+		} else {
+			return errors.New("Invalid IPv6 address, cjdns path, or hostname")
+		}
+	}
+
+	if usePath {
+		return errors.New("You must specify an IPv6 address, hostname or cjdns path")
+	}
+	return errors.New("You must specify an IPv6 address or hostname")
 }
