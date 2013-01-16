@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/inhies/go-cjdns/admin"
 	"net"
+	"regexp"
 	"strings"
 )
 
@@ -74,57 +75,53 @@ func getTable(user *admin.Admin) (table []*Route) {
 	return
 }
 
-func getTarget(input []string, allowHost bool, allowIP bool, allowPath bool) (target string, err error) {
-	if len(input) <= 0 {
+//set the ping.Target if it is valid
+func setTarget(data []string, usePath bool) (target string, err error) {
+	if len(data) == 0 {
 		err = fmt.Errorf("Invalid target specified")
 		return
 	}
+	input := data[0]
+	if input != "" {
+		validIp, _ := regexp.MatchString(ipRegex, input)
+		validPath, _ := regexp.MatchString(pathRegex, input)
+		validHost, _ := regexp.MatchString(hostRegex, input)
 
-	//Check to see if we sent an IPv6 address
-	if err == nil && target == "" && allowIP && strings.Count(input[0], ":") > 2 {
-		tempTarget := padIPv6(net.ParseIP(input[0]))
-		if len(tempTarget) != 39 {
-			err = fmt.Errorf("Invalid IPv6 address")
-		} else {
-			target = tempTarget
-		}
-
-	}
-
-	//Check to see if we were sent a cjdns path
-	if err == nil && target == "" && allowPath && strings.Count(input[0], ".") == 3 && len(input[0]) == 19 {
-		tempTarget := input[0]
-		valid := true
-		for _, c := range tempTarget {
-			if !strings.ContainsRune("abcdeABCDEF0123456789.", c) {
-				valid = false
-				break
-			}
-		}
-		if valid {
-			if len(tempTarget) != 19 {
-				err = fmt.Errorf("Invalid cjdns path")
-			} else {
-				target = tempTarget
-			}
-		}
-	}
-
-	if err == nil && target == "" && allowHost {
-		var ip string
-		ip, err = lookup(input[0])
-		if err != nil {
+		if validIp {
+			target = padIPv6(net.ParseIP(input))
 			return
-		} else if ip == "" {
-			err = fmt.Errorf("Unable to resolve hostname")
-		} else {
+
+		} else if validPath && usePath {
+			target = input
+			return
+
+		} else if validHost {
+			var ip string
+			ip, err = lookup(input)
+			if err != nil {
+				return
+			}
+			if target == "" {
+				err = fmt.Errorf("Unable to resovle hostname")
+				return
+			}
 			target = ip
-			println("Resolved to:", ip)
+			return
+
+		} else {
+			err = fmt.Errorf("Invalid IPv6 address, cjdns path, or hostname")
+			return
 		}
 	}
-	return
 
+	if usePath {
+		err = fmt.Errorf("You must specify an IPv6 address, hostname or cjdns path")
+		return
+	}
+	err = fmt.Errorf("You must specify an IPv6 address or hostname")
+	return
 }
+
 func usage() {
 	println("cjdcmd version ", Version)
 	println("")
