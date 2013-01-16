@@ -35,6 +35,10 @@ const (
 	versionCmd = "version"
 
 	magicalLinkConstant = 5366870.0
+
+	ipRegex   = "^fc[a-f0-9]{1,2}:([a-f0-9]{0,4}:){2,6}[a-f0-9]{1,4}$"
+	pathRegex = "([0-9a-f]{4}\\.){3}[0-9a-f]{4}"
+	hostRegex = "^([a-zA-Z0-9]([a-zA-Z0-9\\-\\.]{0,}[a-zA-Z0-9]))$"
 )
 
 var (
@@ -174,54 +178,16 @@ func main() {
 
 	switch command {
 
-	case versionCmd:
-		// TODO(inhies): Ping a specific node and return it's cjdns version, or
-		// ping all nodes in the routing table and get their versions
-		// git log -1 --date=iso --pretty=format:"%ad" <hash>
-
-	case killCmd:
-		_, err := admin.Core_exit(user)
-		if err != nil {
-			fmt.Printf("%v\n", err)
-			return
-		}
-		alive := true
-		for ; alive; alive, _ = admin.SendPing(user, 1000) {
-			runtime.Gosched() //play nice
-		}
-		println("cjdns is shutting down...")
-
-	case dumpCmd:
-		// TODO: add flag to show zero link quality routes, by default hide them
-		table := getTable(user)
-		sort.Sort(ByQuality{table})
-		k := 1
-		for _, v := range table {
-			if v.Link >= 1 {
-				fmt.Printf("%d IP: %v -- Version: %d -- Path: %s -- Link: %.0f\n", k, v.IP, v.Version, v.Path, v.Link)
-				k++
-			}
-		}
-
 	case traceCmd:
-		target, err := getTarget(data, true, true, true)
+		target, err := setTarget(data, false)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
 		doTraceroute(user, target)
 
-	case "memory":
-		println("Bye bye cjdns! This command causes a crash. Keep trying and maybe one day cjd will fix it :)")
-		response, err := admin.Memory(user)
-		if err != nil {
-			fmt.Printf("%v\n", err)
-			return
-		}
-		fmt.Println(response)
-
 	case routeCmd:
-		target, err := getTarget(data, true, true, true)
+		target, err := setTarget(data, true)
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -242,8 +208,7 @@ func main() {
 	case pingCmd:
 		// TODO: allow input of IP, hex path with and without dots and leading zeros, and binary path
 		// TODO: allow pinging of entire routing table
-
-		target, err := getTarget(data, true, true, true)
+		target, err := setTarget(data, true)
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -333,7 +298,42 @@ func main() {
 		for _, p := range peers {
 			fmt.Printf("IP: %v -- Path: %s -- Link: %.0f\n", p.IP, p.Path, p.Link)
 		}
+	case versionCmd:
+		// TODO(inhies): Ping a specific node and return it's cjdns version, or
+		// ping all nodes in the routing table and get their versions
+		// git log -1 --date=iso --pretty=format:"%ad" <hash>
 
+	case killCmd:
+		_, err := admin.Core_exit(user)
+		if err != nil {
+			fmt.Printf("%v\n", err)
+			return
+		}
+		alive := true
+		for ; alive; alive, _ = admin.SendPing(user, 1000) {
+			runtime.Gosched() //play nice
+		}
+		println("cjdns is shutting down...")
+
+	case dumpCmd:
+		// TODO: add flag to show zero link quality routes, by default hide them
+		table := getTable(user)
+		sort.Sort(ByQuality{table})
+		k := 1
+		for _, v := range table {
+			if v.Link >= 1 {
+				fmt.Printf("%d IP: %v -- Version: %d -- Path: %s -- Link: %.0f\n", k, v.IP, v.Version, v.Path, v.Link)
+				k++
+			}
+		}
+	case "memory":
+		println("Bye bye cjdns! This command causes a crash. Keep trying and maybe one day cjd will fix it :)")
+		response, err := admin.Memory(user)
+		if err != nil {
+			fmt.Printf("%v\n", err)
+			return
+		}
+		fmt.Println(response)
 	default:
 		fmt.Println("Invalid command", command)
 		usage()
