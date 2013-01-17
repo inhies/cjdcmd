@@ -69,7 +69,21 @@ Once you have cjdcmd installed you can run it without any arguments to get a lis
 	dump
 	kill
 
-**NOTE:** cjdcmd uses the cjdns configuration file to load the details needed to connect. It expects the file to be at `/etc/cjdroute.conf` however you can specify an alternate location with the `-f` or `--file` flags.
+**NOTE:** if you don't specify the admin password in the flags then cjdcmd uses the cjdns configuration file to load the details needed to connect. It expects the file to be at `/etc/cjdroute.conf` however you can specify an alternate location with the `-f` or `--file` flags.
+
+### Flags
+	-c=0: 						[ping][traceroute] specify the number of packets to send (shorthand)
+	-count=0: 					[ping][traceroute] specify the number of packets to send
+	-f="/etc/cjdroute.conf": 	[all] the cjdroute.conf configuration file to use, edit, or view (shorthand)
+	-file="/etc/cjdroute.conf": [all] the cjdroute.conf configuration file to use, edit, or view
+	-l="DEBUG": 				[log] specify the logging level to use (shorthand)
+	-level="DEBUG": 			[log] specify the logging level to use
+	-line=0: 					[log] specify the cjdns source file line to log
+	-logfile="": 				[log] specify the cjdns source file you wish to see log output from
+	-p="": 						[all] specify the admin password (shorthand)
+	-pass="": 					[all] specify the admin password
+	-t=5000: 					[ping][traceroute] specify the time in milliseconds cjdns should wait for a response (shorthand)
+	-timeout=5000: 				[ping][traceroute] specify the time in milliseconds cjdns should wait for a response
 
 ### Ping
 
