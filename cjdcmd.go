@@ -1,341 +1,188 @@
-// Package tool is a tool for using cjdns
-package main
+using System;
+using System.Linq;
+using MyCompany;
+using System.Web;
+using System.Web.Security;
+using MyCompany.DAL;
+using MyCompany.Globalization;
+using MyCompany.DAL.Logs;
+using MyCompany.Logging;
 
-import (
-	"flag"
-	"fmt"
-	"github.com/inhies/go-cjdns/admin"
-	"github.com/inhies/go-cjdns/config"
-	"net"
-	"os"
-	"os/signal"
-	"runtime"
-	"sort"
-)
+namespace MyCompany
+{
 
-const (
-	Version = "0.2.2"
+    public class Auth
+    {
 
-	defaultPingTimeout = 5000 //5 seconds
-	defaultPingCount   = 0
+        public class AuthException : Exception
+        {
+            public int StatusCode = 0;
+            public AuthException(string message, int statusCode) : base(message) { StatusCode = statusCode;  }
+        }
 
-	defaultLogLevel    = "DEBUG"
-	defaultLogFile     = ""
-	defaultLogFileLine = 0
+        public class EmptyEmailException : AuthException
+        {
+            public EmptyEmailException() : base(Language.RES_ERROR_LOGIN_CLIENT_EMPTY_EMAIL, 6) { }
+        }
 
-	defaultFile = "/etc/cjdroute.conf"
+        public class EmptyPasswordException : AuthException
+        {
+            public EmptyPasswordException() : base(Language.RES_ERROR_LOGIN_CLIENT_EMPTY_PASSWORD, 7) { }
+        }
 
-	pingCmd    = "ping"
-	logCmd     = "log"
-	traceCmd   = "traceroute"
-	peerCmd    = "peers"
-	dumpCmd    = "dump"
-	routeCmd   = "route"
-	killCmd    = "kill"
-	versionCmd = "version"
+        public class WrongEmailException : AuthException
+        {
+            public WrongEmailException() : base(Language.RES_ERROR_LOGIN_CLIENT_WRONG_EMAIL, 2) { }
+        }
 
-	magicalLinkConstant = 5366870.0
+        public class WrongPasswordException : AuthException
+        {
+            public WrongPasswordException() : base(Language.RES_ERROR_LOGIN_CLIENT_WRONG_PASSWORD, 3) { }
+        }
 
-	ipRegex   = "^fc[a-f0-9]{1,2}:([a-f0-9]{0,4}:){2,6}[a-f0-9]{1,4}$"
-	pathRegex = "([0-9a-f]{4}\\.){3}[0-9a-f]{4}"
-	hostRegex = "^([a-zA-Z0-9]([a-zA-Z0-9\\-\\.]{0,}[a-zA-Z0-9]))$"
-)
+        public class InactiveAccountException : AuthException
+        {
+            public InactiveAccountException() : base(Language.RES_ERROR_LOGIN_CLIENT_INACTIVE_ACCOUNT, 5) { }
+        }
 
-var (
-	PingTimeout int
-	PingCount   int
+        public class EmailNotValidatedException : AuthException
+        {
+            public EmailNotValidatedException() : base(Language.RES_ERROR_LOGIN_CLIENT_EMAIL_NOT_VALIDATED, 4) { }
+        }
 
-	LogLevel    string
-	LogFile     string
-	LogFileLine int
+        private readonly string CLIENT_KEY = "9A751E0D-816F-4A92-9185-559D38661F77";
 
-	fs *flag.FlagSet
+        private readonly string CLIENT_USER_KEY = "0CE2F700-1375-4B0F-8400-06A01CED2658";
 
-	File string
-)
+        public Client Client
+        {
+            get
+            {
+                if(!IsAuthenticated) return null;
+                if(HttpContext.Current.Items[CLIENT_KEY]==null)
+                {
+                    HttpContext.Current.Items[CLIENT_KEY] = ClientMethods.Get<Client>((Guid)ClientId); 
+                }
+                return (Client)HttpContext.Current.Items[CLIENT_KEY];
+            }
+        }
 
-type Route struct {
-	IP      string
-	Path    string
-	RawPath uint64
-	Link    float64
-	RawLink int64
-	Version int64
-}
+        public ClientUser ClientUser
+        {
+            get
+            {
+                if (!IsAuthenticated) return null;
+                if (HttpContext.Current.Items[CLIENT_USER_KEY] == null)
+                {
+                    HttpContext.Current.Items[CLIENT_USER_KEY] = ClientUserMethods.GetByClientId((Guid)ClientId);
+                }
+                return (ClientUser)HttpContext.Current.Items[CLIENT_USER_KEY];
+            }
+        }
 
-func init() {
+        public Boolean IsAuthenticated { get; set; }
 
-	fs = flag.NewFlagSet("cjdcmd", flag.ExitOnError)
-	const (
-		usagePingTimeout = "[ping][traceroute] specify the time in milliseconds cjdns should wait for a response"
-		usagePingCount   = "[ping][traceroute] specify the number of packets to send"
+        public Guid? ClientId { 
+            get 
+            {
+                if (!IsAuthenticated) return null;
+                return (Guid)HttpContext.Current.Session["ClientId"];
+            } 
+        }
 
-		usageLogLevel    = "[log] specify the logging level to use"
-		usageLogFile     = "[log] specify the cjdns source file you wish to see log output from"
-		usageLogFileLine = "[log] specify the cjdns source file line to log"
+        public Guid? ClientUserId { 
+            get {
+                if (!IsAuthenticated) return null;
+                return ClientUser.Id;
+            } 
+        }
 
-		usageFile = "[all] the cjdroute.conf configuration file to use, edit, or view"
-	)
-	fs.StringVar(&File, "file", defaultFile, usageFile)
-	fs.StringVar(&File, "f", defaultFile, usageFile+" (shorthand)")
+        public int ClientTypeId { 
+            get {
+                if (!IsAuthenticated) return 0;
+                return Client.ClientTypeId;
+            } 
+        }
 
-	fs.IntVar(&PingTimeout, "timeout", defaultPingTimeout, usagePingTimeout)
-	fs.IntVar(&PingTimeout, "t", defaultPingTimeout, usagePingTimeout+" (shorthand)")
+        public Auth()
+        {
+            if (HttpContext.Current.User.Identity.IsAuthenticated)
+            {
+                IsAuthenticated = true;
+            }
+        }
 
-	fs.IntVar(&PingCount, "count", defaultPingCount, usagePingCount)
-	fs.IntVar(&PingCount, "c", defaultPingCount, usagePingCount+" (shorthand)")
+        public void RequireClientOfType(params int[] types)
+        {
+            if (!(IsAuthenticated && types.Contains(ClientTypeId)))
+            {
+                HttpContext.Current.Response.Redirect((new UrlFactory(false)).GetHomeUrl(), true);
+            }
+        }
 
-	fs.StringVar(&LogLevel, "level", defaultLogLevel, usageLogLevel)
-	fs.StringVar(&LogLevel, "l", defaultLogLevel, usageLogLevel+" (shorthand)")
+        public void Logout()
+        {
+            Logout(true);
+        }
 
-	fs.StringVar(&LogFile, "logfile", defaultLogFile, usageLogFile)
-	fs.IntVar(&LogFileLine, "line", defaultLogFileLine, usageLogFileLine)
+        public void Logout(Boolean redirect)
+        {
+            FormsAuthentication.SignOut();
+            IsAuthenticated = false;
+            HttpContext.Current.Session["ClientId"] = null;
+            HttpContext.Current.Items[CLIENT_KEY] = null;
+            HttpContext.Current.Items[CLIENT_USER_KEY] = null;
+            if(redirect) HttpContext.Current.Response.Redirect((new UrlFactory(false)).GetHomeUrl(), true);
+        }
 
-}
+        public void Login(string email, string password, bool autoLogin)
+        {
+            Logout(false);
 
-func main() {
-	//Define the flags, and parse them
-	//Clearly a hack but it works for now
-	//TODO(inhies): Re-implement flag parsing so flags can have multiple meanings based on the base command (ping, route, etc)
-	if len(os.Args) <= 1 {
-		usage()
-		return
-	} else if len(os.Args) == 2 {
-		if string(os.Args[1]) == "--help" {
-			fs.PrintDefaults()
-			return
-		}
-	} else {
-		fs.Parse(os.Args[2:])
-	}
+            email = email.Trim().ToLower();
+            password = password.Trim();
 
-	//TODO(inhies): check argv[0] for trailing commands.
-	//For example, to run ctraceroute:
-	//ln -s /path/to/cjdcmd /usr/bin/ctraceroute like things
-	command := os.Args[1]
+            int status = 1;
 
-	//read the config
-	// TODO: check ./cjdroute.conf /etc/cjdroute.conf ~/cjdroute.conf ~/cjdns/cjdroute.conf maybe ~/cjdns/build/cjdroute.conf
-	conf, err := config.LoadMinConfig(File)
+            LoginAttemptLog log = new LoginAttemptLog { AutoLogin = autoLogin, Email = email, Password = password };
 
-	if err != nil || len(conf.Admin.Password) == 0 {
-		fmt.Printf("Error: %v\n", err)
-		return
-	}
+            try
+            {
+                if (string.IsNullOrEmpty(email)) throw new EmptyEmailException();
 
-	fmt.Printf("Attempting to connect to cjdns...")
-	user, err := admin.Connect(conf.Admin.Bind, conf.Admin.Password) //conf.Admin.Bind
-	if err != nil {
-		if e, ok := err.(net.Error); ok {
-			if e.Timeout() {
-				fmt.Println("\nConnection timed out")
-			} else if e.Temporary() {
-				fmt.Println("\nTemporary error (not sure what that means!)")
-			} else {
-				fmt.Println("\nUnable to connect to cjdns:", e)
-			}
-		} else {
-			fmt.Println("\nError:", err)
-		}
-		return
-	}
+                if (string.IsNullOrEmpty(password)) throw new EmptyPasswordException();
 
-	println("Connected")
-	defer user.Conn.Close()
-	arguments := fs.Args()
-	data := arguments[fs.NFlag()-fs.NFlag():]
+                ClientUser clientUser = ClientUserMethods.GetByEmailExcludingProspects(email);
 
-	//Setup variables now so that if the program is killed we can still finish what we're doing
-	ping := &Ping{}
-	var loggingStreamID string
+                if (clientUser == null) throw new WrongEmailException();
 
-	// capture ctrl+c 
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	go func() {
-		for _ = range c {
-			fmt.Printf("\n")
-			if command == "log" {
-				//unsubscribe from logging
-				_, err := admin.AdminLog_unsubscribe(user, loggingStreamID)
-				if err != nil {
-					fmt.Printf("%v\n", err)
-					return
-				}
-			}
-			if command == "ping" {
-				//stop pinging and print results
-				outputPing(ping)
-			}
-			//close all the channels
-			for _, c := range user.Channels {
-				close(c)
-			}
-			user.Conn.Close()
-			return
-		}
-	}()
+                if (!clientUser.Password.Equals(password)) throw new WrongPasswordException();
 
-	switch command {
+                Client client = clientUser.Client;
 
-	case traceCmd:
-		target, err := setTarget(data, false)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		doTraceroute(user, target)
+                if (!(bool)client.PreRegCheck) throw new EmailNotValidatedException();
 
-	case routeCmd:
-		target, err := setTarget(data, true)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		table := getTable(user)
-		sort.Sort(ByQuality{table})
-		count := 0
-		for _, v := range table {
-			if v.IP == target || v.Path == target {
-				if v.Link > 1 {
-					fmt.Printf("IP: %v -- Version: %d -- Path: %s -- Link: %.0f\n", v.IP, v.Version, v.Path, v.Link)
-					count++
-				}
-			}
-		}
-		fmt.Println("Found", count, "routes")
+                if (!(bool)client.Active || client.DeleteFlag.Equals("y")) throw new InactiveAccountException();
 
-	case pingCmd:
-		// TODO: allow input of IP, hex path with and without dots and leading zeros, and binary path
-		// TODO: allow pinging of entire routing table
-		target, err := setTarget(data, true)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		ping.Target = target
-		if PingCount != defaultPingCount {
-			// ping only as much as the user asked for
-			for i := 1; i <= PingCount; i++ {
-				err := pingNode(user, ping)
-				if err != nil {
-					fmt.Println(err)
-					return
-				}
-				println(ping.Response)
-			}
-		} else {
-			// ping until we're told otherwise
-			for {
-				err := pingNode(user, ping)
-				if err != nil {
-					fmt.Println(err)
-					return
-				}
-				println(ping.Response)
-			}
-		}
-		outputPing(ping)
+                FormsAuthentication.SetAuthCookie(client.Id.ToString(), true);
+                HttpContext.Current.Session["ClientId"] = client.Id;
 
-	case logCmd:
-		var response chan map[string]interface{}
-		response, loggingStreamID, err = admin.AdminLog_subscribe(user, LogFile, LogLevel, LogFileLine)
-		if err != nil {
-			fmt.Printf("Error: %v\n", err)
-			return
-		}
-		format := "%d %d %s %s:%d %s\n" // TODO: add user formatted output
-		counter := 1
-		for {
-			input, ok := <-response
-			if !ok {
-				break
-			}
-			fmt.Printf(format, counter, input["time"], input["level"], input["file"], input["line"], input["message"])
-			counter++
-		}
+                log.KeyId = client.Id;
+                log.KeyEntityId = ClientMethods.GetEntityId(client.ClientTypeId);
+            }
+            catch (AuthException ax)
+            {
+                status = ax.StatusCode;
+                log.Success = status == 1;
+                log.Status = status;
+            }
+            finally
+            {
+                LogRecorder.Record(log);
+            }
 
-	case peerCmd:
-		peers := make([]*Route, 0)
-		table := getTable(user)
-		sort.Sort(ByQuality{table})
-		fmt.Println("Finding all connected peers")
+        }
 
-		for i := range table {
+    }
 
-			if table[i].Link < 1 {
-				continue
-			}
-			if table[i].RawPath == 1 {
-				continue
-			}
-			response, err := getHops(table, table[i].RawPath)
-			if err != nil {
-				fmt.Println(err)
-			}
-
-			sort.Sort(ByPath{response})
-
-			var peer *Route
-			if len(response) > 1 {
-				peer = response[1]
-			} else {
-				peer = response[0]
-			}
-
-			found := false
-			for _, p := range peers {
-				if p == peer {
-					found = true
-					break
-				}
-			}
-
-			if !found {
-				peers = append(peers, peer)
-			}
-		}
-		for _, p := range peers {
-			fmt.Printf("IP: %v -- Path: %s -- Link: %.0f\n", p.IP, p.Path, p.Link)
-		}
-	case versionCmd:
-		// TODO(inhies): Ping a specific node and return it's cjdns version, or
-		// ping all nodes in the routing table and get their versions
-		// git log -1 --date=iso --pretty=format:"%ad" <hash>
-
-	case killCmd:
-		_, err := admin.Core_exit(user)
-		if err != nil {
-			fmt.Printf("%v\n", err)
-			return
-		}
-		alive := true
-		for ; alive; alive, _ = admin.SendPing(user, 1000) {
-			runtime.Gosched() //play nice
-		}
-		println("cjdns is shutting down...")
-
-	case dumpCmd:
-		// TODO: add flag to show zero link quality routes, by default hide them
-		table := getTable(user)
-		sort.Sort(ByQuality{table})
-		k := 1
-		for _, v := range table {
-			if v.Link >= 1 {
-				fmt.Printf("%d IP: %v -- Version: %d -- Path: %s -- Link: %.0f\n", k, v.IP, v.Version, v.Path, v.Link)
-				k++
-			}
-		}
-	case "memory":
-		println("Bye bye cjdns! This command causes a crash. Keep trying and maybe one day cjd will fix it :)")
-		response, err := admin.Memory(user)
-		if err != nil {
-			fmt.Printf("%v\n", err)
-			return
-		}
-		fmt.Println(response)
-	default:
-		fmt.Println("Invalid command", command)
-		usage()
-	}
 }
