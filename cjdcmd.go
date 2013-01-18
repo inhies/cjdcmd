@@ -23,7 +23,9 @@ const (
 	defaultLogFile     = ""
 	defaultLogFileLine = 0
 
-	defaultFile = "/etc/cjdroute.conf"
+	defaultFile      = "/etc/cjdroute.conf"
+	defaultPass      = ""
+	defaultAdminBind = "127.0.0.1:11234"
 
 	pingCmd    = "ping"
 	logCmd     = "log"
@@ -51,7 +53,9 @@ var (
 
 	fs *flag.FlagSet
 
-	File string
+	File          string
+	AdminPassword string
+	AdminBind     string
 )
 
 type Route struct {
@@ -75,6 +79,8 @@ func init() {
 		usageLogFileLine = "[log] specify the cjdns source file line to log"
 
 		usageFile = "[all] the cjdroute.conf configuration file to use, edit, or view"
+
+		usagePass = "[all] specify the admin password"
 	)
 	fs.StringVar(&File, "file", defaultFile, usageFile)
 	fs.StringVar(&File, "f", defaultFile, usageFile+" (shorthand)")
@@ -87,6 +93,9 @@ func init() {
 
 	fs.StringVar(&LogLevel, "level", defaultLogLevel, usageLogLevel)
 	fs.StringVar(&LogLevel, "l", defaultLogLevel, usageLogLevel+" (shorthand)")
+
+	fs.StringVar(&AdminPassword, "pass", defaultPass, usagePass)
+	fs.StringVar(&AdminPassword, "p", defaultPass, usagePass+" (shorthand)")
 
 	fs.StringVar(&LogFile, "logfile", defaultLogFile, usageLogFile)
 	fs.IntVar(&LogFileLine, "line", defaultLogFileLine, usageLogFileLine)
@@ -114,17 +123,22 @@ func main() {
 	//ln -s /path/to/cjdcmd /usr/bin/ctraceroute like things
 	command := os.Args[1]
 
-	//read the config
-	// TODO: check ./cjdroute.conf /etc/cjdroute.conf ~/cjdroute.conf ~/cjdns/cjdroute.conf maybe ~/cjdns/build/cjdroute.conf
-	conf, err := config.LoadMinConfig(File)
+	if AdminPassword == defaultPass {
+		conf, err := config.LoadMinConfig(File)
+		fmt.Printf("\nReading config file from %v\n", File)
+		if err != nil || len(conf.Admin.Password) == 0 {
+			fmt.Printf("Error: %v\n", err)
+			return
+		}
 
-	if err != nil || len(conf.Admin.Password) == 0 {
-		fmt.Printf("Error: %v\n", err)
-		return
+		AdminPassword = conf.Admin.Password
+		AdminBind = conf.Admin.Bind
+	} else {
+		AdminBind = defaultAdminBind
 	}
 
 	fmt.Printf("Attempting to connect to cjdns...")
-	user, err := admin.Connect(conf.Admin.Bind, conf.Admin.Password) //conf.Admin.Bind
+	user, err := admin.Connect(AdminBind, AdminPassword)
 	if err != nil {
 		if e, ok := err.(net.Error); ok {
 			if e.Timeout() {
