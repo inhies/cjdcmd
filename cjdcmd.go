@@ -2,6 +2,7 @@
 package main
 
 import (
+	//"encoding/hex"
 	"flag"
 	"fmt"
 	"github.com/inhies/go-cjdns/admin"
@@ -191,7 +192,16 @@ func main() {
 	}()
 
 	switch command {
-
+	case "passgen":
+		println(randString(15, 50))
+	case "ip":
+		parsed, err := admin.PubKeyToIP([]byte(data[0]))
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		fmt.Printf("%v\n", parsed)
+		//fmt.Printf("%s\n", hex.EncodeToString(sha512hash(sha512hash([]byte(data[0])))))
 	case traceCmd:
 		target, err := setTarget(data, false)
 		if err != nil {

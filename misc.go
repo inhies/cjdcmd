@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/inhies/go-cjdns/admin"
+	"math/rand"
 	"net"
 	"regexp"
 	"strings"
@@ -142,4 +143,28 @@ func usage() {
 	println("kill                                               tells cjdns to gracefully exit")
 	println("")
 	println("Please use `cjdcmd --help` for a list of flags.")
+}
+
+// Returns a random alphanumeric string where length is <= max >= min
+func randString(min, max int) string {
+	r := myRand(min, max, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
+	return r
+}
+
+// Returns a random character from the specified string where length is <= max >= min
+func myRand(min, max int, char string) string {
+
+	var length int
+
+	if min < max {
+		length = min + rand.Intn(max-min)
+	} else {
+		length = min
+	}
+
+	buf := make([]byte, length)
+	for i := 0; i < length; i++ {
+		buf[i] = char[rand.Intn(len(char)-1)]
+	}
+	return string(buf)
 }
