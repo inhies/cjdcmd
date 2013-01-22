@@ -27,8 +27,11 @@ func pingNode(user *admin.Admin, ping *Ping) (err error) {
 			ping.Error = "timeout"
 			ping.Failed++
 		} else {
-			ping.Response = fmt.Sprintf("Reply from %v %vms", ping.Target, response.Time)
+			// TODO(inhies): Perform a reverse DNS on the response IP, and format the output more like traditional ping, maybe?
+
 			ping.Success++
+			ping.Response = fmt.Sprintf("Reply from %v req=%v time=%v ms", ping.Target, ping.Success+ping.Failed, response.Time)
+
 			ping.CTime = float64(response.Time)
 			ping.TTime += ping.CTime
 			ping.TTime2 += ping.CTime * ping.CTime
@@ -75,5 +78,7 @@ func outputPing(Ping *Ping) {
 	fmt.Println("\n---", Ping.Target, "ping statistics ---")
 	fmt.Printf("%v packets transmitted, %v received, %.2f%% packet loss, time %vms\n", Ping.Sent, Ping.Success, Ping.Percent, Ping.TTime)
 	fmt.Printf("rtt min/avg/max/mdev = %.3f/%.3f/%.3f/%.3f ms\n", Ping.TMin, Ping.TAvg, Ping.TMax, Ping.TDev)
-	fmt.Printf("Target is using cjdns version %v\n", Ping.Version)
+	if Ping.Version != "" {
+		fmt.Printf("Target is using cjdns version %v\n", Ping.Version)
+	}
 }

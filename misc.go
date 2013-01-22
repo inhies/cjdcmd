@@ -129,8 +129,13 @@ func getTable(user *admin.Admin) (table []*Route) {
 	return
 }
 
-//set the ping.Target if it is valid
-func setTarget(data []string, usePath bool) (target string, err error) {
+type Target struct {
+	Target   string
+	Supplied string
+}
+
+// Sets target.Target to the requried IP or cjdns path
+func setTarget(data []string, usePath bool) (target Target, err error) {
 	if len(data) == 0 {
 		err = fmt.Errorf("Invalid target specified")
 		return
@@ -142,15 +147,31 @@ func setTarget(data []string, usePath bool) (target string, err error) {
 		validHost, _ := regexp.MatchString(hostRegex, input)
 
 		if validIp {
-			target = padIPv6(net.ParseIP(input))
+			target.Supplied = data[0]
+			target.Target = padIPv6(net.ParseIP(input))
 			return
 
 		} else if validPath && usePath {
-			target = input
+			target.Target = input
+			target.Supplied = data[0]
 			return
 
 		} else if validHost {
 			var ip string
+			var result []string
+
+			// Try with the local resolver
+			result, err = net.LookupHost(data[0])
+			for _, r := range result {
+				tIP := net.ParseIP(r)
+				if tIP[0] == 0xfc {
+					target.Target = r
+					target.Supplied = data[0]
+					return
+				}
+			}
+
+			// Try with hypedns
 			ip, err = lookup(input)
 			if err != nil {
 				return
@@ -159,7 +180,8 @@ func setTarget(data []string, usePath bool) (target string, err error) {
 				err = fmt.Errorf("Unable to resovle hostname. This is usually caused by not having a route to hypedns. Please try again in a few seconds.")
 				return
 			}
-			target = ip
+			target.Target = ip
+			target.Supplied = data[0]
 			return
 
 		} else {
@@ -176,6 +198,36 @@ func setTarget(data []string, usePath bool) (target string, err error) {
 	return
 }
 
+// Checks to make sure that a valid target was supplied
+func checkTarget(data []string, usePath bool) (err error) {
+	if len(data) == 0 {
+		err = fmt.Errorf("Invalid target specified")
+		return
+	}
+	input := data[0]
+	if input != "" {
+		validIp, _ := regexp.MatchString(ipRegex, input)
+		validPath, _ := regexp.MatchString(pathRegex, input)
+		validHost, _ := regexp.MatchString(hostRegex, input)
+
+		if validIp {
+			return
+		} else if validPath && usePath {
+			return
+		} else if validHost {
+			return
+		} else {
+			err = fmt.Errorf("Invalid IPv6 address, cjdns path, or hostname")
+			return
+		}
+	}
+	if usePath {
+		err = fmt.Errorf("You must specify an IPv6 address, hostname or cjdns path")
+		return
+	}
+	err = fmt.Errorf("You must specify an IPv6 address or hostname")
+	return
+}
 func usage() {
 	println("cjdcmd version ", Version)
 	println("")

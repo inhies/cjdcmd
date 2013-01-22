@@ -2,13 +2,11 @@
 package main
 
 import (
-	//"encoding/hex"
 	"flag"
 	"fmt"
 	"github.com/inhies/go-cjdns/admin"
-
 	"math/rand"
-
+	"net"
 	"os"
 	"os/signal"
 	"runtime"
@@ -169,6 +167,7 @@ func main() {
 	}()
 
 	switch command {
+
 	case passGenCmd:
 		// Prints a random alphanumberic password between 15 and 50 characters long
 		// TODO(inies): Make more better
@@ -204,7 +203,7 @@ func main() {
 			fmt.Println("Error:", err)
 			return
 		}
-		doTraceroute(globalData.User, target)
+		doTraceroute(globalData.User, target.Target)
 
 	case routeCmd:
 
@@ -223,7 +222,7 @@ func main() {
 		sort.Sort(ByQuality{table})
 		count := 0
 		for _, v := range table {
-			if v.IP == target || v.Path == target {
+			if v.IP == target.Target || v.Path == target.Target {
 				if v.Link > 1 {
 					fmt.Printf("IP: %v -- Version: %d -- Path: %s -- Link: %.0f\n", v.IP, v.Version, v.Path, v.Link)
 					count++
@@ -246,7 +245,8 @@ func main() {
 			return
 		}
 		globalData.User = user
-		ping.Target = target
+		ping.Target = target.Target
+		fmt.Printf("PING %v (%v)\n", target.Supplied, target.Target)
 		if PingCount != defaultPingCount {
 			// ping only as much as the user asked for
 			for i := 1; i <= PingCount; i++ {
@@ -270,8 +270,9 @@ func main() {
 				start := time.Duration(time.Now().UTC().UnixNano())
 				err := pingNode(globalData.User, ping)
 				if err != nil {
-					if err.Error() != "Socket closed" {
-						fmt.Println(err)
+					// Ignore these errors, as they are returned when we kill an in-progress ping
+					if err.Error() != "Socket closed" && err.Error() != "use of closed network connection" {
+						fmt.Println("ermagherd:", err)
 					}
 					return
 				}
