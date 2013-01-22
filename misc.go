@@ -12,6 +12,12 @@ import (
 	"strings"
 )
 
+const (
+	ipRegex   = "^fc[a-f0-9]{1,2}:([a-f0-9]{0,4}:){2,6}[a-f0-9]{1,4}$"
+	pathRegex = "([0-9a-f]{4}\\.){3}[0-9a-f]{4}"
+	hostRegex = "^([a-zA-Z0-9]([a-zA-Z0-9\\-\\.]{0,}[a-zA-Z0-9]))$"
+)
+
 func readConfig() (conf *config.Config, err error) {
 	if AdminPassword == defaultPass {
 		conf, err = config.LoadMinConfig(File)
@@ -157,33 +163,17 @@ func setTarget(data []string, usePath bool) (target Target, err error) {
 			return
 
 		} else if validHost {
-			var ip string
-			var result []string
-
-			// Try with the local resolver
-			result, _ = net.LookupHost(data[0])
-			for _, r := range result {
-				tIP := net.ParseIP(r)
-				if tIP[0] == 0xfc {
-					target.Target = r
-					target.Supplied = data[0]
-					return
-				}
-			}
-
-			// Try with hypedns
-			ip, err = lookup(input)
+			var ips []string
+			ips, err = resolveHost(input)
 			if err != nil {
-				err = fmt.Errorf("Unable to resovle hostname. This is usually caused by not having a route to hypedns. Please try again in a few seconds.")
 				return
 			}
-			if ip == "" {
-				err = fmt.Errorf("Unable to resovle hostname. This is usually caused by not having a route to hypedns. Please try again in a few seconds.")
+			// Return the first result
+			for _, addr := range ips {
+				target.Target = addr
+				target.Supplied = input
 				return
 			}
-			target.Target = ip
-			target.Supplied = data[0]
-			return
 
 		} else {
 			err = fmt.Errorf("Invalid IPv6 address, cjdns path, or hostname")
@@ -199,36 +189,6 @@ func setTarget(data []string, usePath bool) (target Target, err error) {
 	return
 }
 
-// Checks to make sure that a valid target was supplied
-func checkTarget(data []string, usePath bool) (err error) {
-	if len(data) == 0 {
-		err = fmt.Errorf("Invalid target specified")
-		return
-	}
-	input := data[0]
-	if input != "" {
-		validIp, _ := regexp.MatchString(ipRegex, input)
-		validPath, _ := regexp.MatchString(pathRegex, input)
-		validHost, _ := regexp.MatchString(hostRegex, input)
-
-		if validIp {
-			return
-		} else if validPath && usePath {
-			return
-		} else if validHost {
-			return
-		} else {
-			err = fmt.Errorf("Invalid IPv6 address, cjdns path, or hostname")
-			return
-		}
-	}
-	if usePath {
-		err = fmt.Errorf("You must specify an IPv6 address, hostname or cjdns path")
-		return
-	}
-	err = fmt.Errorf("You must specify an IPv6 address or hostname")
-	return
-}
 func usage() {
 	println("cjdcmd version ", Version)
 	println("")
@@ -244,7 +204,7 @@ func usage() {
 	println("route <ipv6 address, hostname, or routing path>    prints out all routes to an IP or the IP to a route")
 	println("traceroute <ipv6 address or hostname> [-t timeout] performs a traceroute by pinging each known hop to the target on all known paths")
 	println("ip <cjdns public key>                              converts a cjdns public key to the corresponding IPv6 address")
-	println("host <hostname>                                    returns a list of all know IP address for the specified hostname")
+	println("host <ipv6 address or hostname>                    returns a list of all know IP address for the specified hostname or the hostname for an address")
 	println("passgen                                            generates a random alphanumeric password between 15 and 50 characters in length")
 	println("log [-l level] [-file file] [-line line]           prints cjdns log to stdout")
 	println("peers                                              displays a list of currently connected peers")
