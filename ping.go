@@ -7,7 +7,7 @@ import (
 )
 
 type Ping struct {
-	Target, Version, Response, Error             string
+	Target, Domain, Version, Response, Error     string
 	Failed, Percent, Sent, Success               float64
 	CTime, TTime, TTime2, TMin, TAvg, TMax, TDev float64
 }

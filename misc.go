@@ -21,7 +21,6 @@ const (
 func readConfig() (conf *config.Config, err error) {
 	if AdminPassword == defaultPass {
 		conf, err = config.LoadMinConfig(File)
-		//fmt.Printf("\nReading config file from %v\n", File)
 		if err != nil || len(conf.Admin.Password) == 0 {
 			return
 		}
@@ -34,10 +33,8 @@ func readConfig() (conf *config.Config, err error) {
 	return
 }
 func adminConnect() (user *admin.Admin, err error) {
-	//fmt.Printf("Attempting to connect to cjdns...")
 	user, err = admin.Connect(AdminBind, AdminPassword)
 	if err != nil {
-		println("Asdfasfasdf")
 		if e, ok := err.(net.Error); ok {
 			if e.Timeout() {
 				fmt.Println("\nConnection timed out")
@@ -51,8 +48,6 @@ func adminConnect() (user *admin.Admin, err error) {
 		}
 		return
 	}
-
-	//println("Connected")
 	return
 }
 func connect() (user *admin.Admin, err error) {
@@ -140,6 +135,19 @@ type Target struct {
 	Supplied string
 }
 
+func validIP(input string) (result bool) {
+	result, _ = regexp.MatchString(ipRegex, input)
+	return
+}
+func validPath(input string) (result bool) {
+	result, _ = regexp.MatchString(pathRegex, input)
+	return
+}
+func validHost(input string) (result bool) {
+	result, _ = regexp.MatchString(hostRegex, input)
+	return
+}
+
 // Sets target.Target to the requried IP or cjdns path
 func setTarget(data []string, usePath bool) (target Target, err error) {
 	if len(data) == 0 {
@@ -148,21 +156,18 @@ func setTarget(data []string, usePath bool) (target Target, err error) {
 	}
 	input := data[0]
 	if input != "" {
-		validIp, _ := regexp.MatchString(ipRegex, input)
-		validPath, _ := regexp.MatchString(pathRegex, input)
-		validHost, _ := regexp.MatchString(hostRegex, input)
 
-		if validIp {
+		if validIP(input) {
 			target.Supplied = data[0]
 			target.Target = padIPv6(net.ParseIP(input))
 			return
 
-		} else if validPath && usePath {
+		} else if validPath(input) && usePath {
 			target.Target = input
 			target.Supplied = data[0]
 			return
 
-		} else if validHost {
+		} else if validHost(input) {
 			var ips []string
 			ips, err = resolveHost(input)
 			if err != nil {

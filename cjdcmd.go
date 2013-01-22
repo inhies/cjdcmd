@@ -296,7 +296,39 @@ func main() {
 		}
 		globalData.User = user
 		ping.Target = target.Target
-		fmt.Printf("PING %v (%v)\n", target.Supplied, target.Target)
+
+		var tText string
+
+		// If we were given an IP then try to resolve the hostname
+		if validIP(target.Supplied) {
+			hostname, _ := resolveIP(target.Target)
+			if hostname != "" {
+				tText = target.Supplied + " (" + hostname + ")"
+			} else {
+				tText = target.Supplied
+			}
+			// If we were given a path, resolve the IP
+		} else if validPath(target.Supplied) {
+			tText = target.Supplied
+			table := getTable(globalData.User)
+			for _, v := range table {
+				if v.Path == target.Supplied {
+					// We have the IP now
+					tText = target.Supplied + " (" + v.IP + ")"
+
+					// Try to get the hostname
+					hostname, _ := resolveIP(v.IP)
+					if hostname != "" {
+						tText = target.Supplied + " (" + v.IP + " (" + hostname + "))"
+					}
+				}
+			}
+			// We were given a hostname, everything is already done for us!
+		} else if validHost(target.Supplied) {
+			tText = target.Supplied + " (" + target.Target + ")"
+		}
+		fmt.Printf("PING %v \n", tText)
+
 		if PingCount != defaultPingCount {
 			// ping only as much as the user asked for
 			for i := 1; i <= PingCount; i++ {
