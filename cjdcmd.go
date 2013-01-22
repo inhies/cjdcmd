@@ -224,7 +224,14 @@ func main() {
 			fmt.Println(err)
 			return
 		}
-		fmt.Printf("%v\n", parsed)
+		var tText string
+		hostname, _ := resolveIP(string(parsed))
+		if hostname != "" {
+			tText = string(parsed) + " (" + hostname + ")"
+		} else {
+			tText = string(parsed)
+		}
+		fmt.Printf("%v\n", tText)
 
 	case traceCmd:
 		user, err := connect()
