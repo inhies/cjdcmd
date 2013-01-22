@@ -195,13 +195,13 @@ func main() {
 	case traceCmd:
 		user, err := connect()
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println("Error:", err)
 			return
 		}
 		globalData.User = user
 		target, err := setTarget(data, false)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println("Error:", err)
 			return
 		}
 		doTraceroute(globalData.User, target)

@@ -39,7 +39,7 @@ func doTraceroute(user *admin.Admin, target string) {
 
 		response, err := getHops(table, table[i].RawPath)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Println("Error:", err)
 		}
 
 		sort.Sort(ByPath{response})
