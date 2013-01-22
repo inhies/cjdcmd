@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	Version = "0.2.5"
+	Version = "0.2.6"
 
 	defaultPingTimeout  = 5000 //5 seconds
 	defaultPingCount    = 0
@@ -252,6 +252,14 @@ func main() {
 			fmt.Println(err)
 			return
 		}
+		var tText string
+		hostname, _ := resolveIP(target.Target)
+		if hostname != "" {
+			tText = target.Target + " (" + hostname + ")"
+		} else {
+			tText = target.Target
+		}
+		fmt.Printf("Showing all routes to %v\n", tText)
 		globalData.User = user
 		table := getTable(globalData.User)
 		sort.Sort(ByQuality{table})
