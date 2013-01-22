@@ -2,19 +2,22 @@
 package main
 
 import (
+	//"encoding/hex"
 	"flag"
 	"fmt"
 	"github.com/inhies/go-cjdns/admin"
-	"github.com/inhies/go-cjdns/config"
-	"net"
+
+	"math/rand"
+
 	"os"
 	"os/signal"
 	"runtime"
 	"sort"
+	"time"
 )
 
 const (
-	Version = "0.2.2"
+	Version = "0.2.3"
 
 	defaultPingTimeout = 5000 //5 seconds
 	defaultPingCount   = 0
@@ -27,16 +30,18 @@ const (
 	defaultPass      = ""
 	defaultAdminBind = "127.0.0.1:11234"
 
-	pingCmd    = "ping"
-	logCmd     = "log"
-	traceCmd   = "traceroute"
-	peerCmd    = "peers"
-	dumpCmd    = "dump"
-	routeCmd   = "route"
-	killCmd    = "kill"
-	versionCmd = "version"
+	pingCmd       = "ping"
+	logCmd        = "log"
+	traceCmd      = "traceroute"
+	peerCmd       = "peers"
+	dumpCmd       = "dump"
+	routeCmd      = "route"
+	killCmd       = "kill"
+	versionCmd    = "version"
+	pubKeyToIPcmd = "ip"
+	passGenCmd    = "passgen"
 
-	magicalLinkConstant = 5366870.0
+	magicalLinkConstant = 5366870.0 //Determined by cjd way back in the dark ages.
 
 	ipRegex   = "^fc[a-f0-9]{1,2}:([a-f0-9]{0,4}:){2,6}[a-f0-9]{1,4}$"
 	pathRegex = "([0-9a-f]{4}\\.){3}[0-9a-f]{4}"
@@ -65,6 +70,11 @@ type Route struct {
 	Link    float64
 	RawLink int64
 	Version int64
+}
+
+type Data struct {
+	User            *admin.Admin
+	LoggingStreamID string
 }
 
 func init() {
@@ -100,6 +110,7 @@ func init() {
 	fs.StringVar(&LogFile, "logfile", defaultLogFile, usageLogFile)
 	fs.IntVar(&LogFileLine, "line", defaultLogFileLine, usageLogFileLine)
 
+	rand.Seed(time.Now().UTC().UnixNano())
 }
 
 func main() {
@@ -123,46 +134,13 @@ func main() {
 	//ln -s /path/to/cjdcmd /usr/bin/ctraceroute like things
 	command := os.Args[1]
 
-	if AdminPassword == defaultPass {
-		conf, err := config.LoadMinConfig(File)
-		fmt.Printf("\nReading config file from %v\n", File)
-		if err != nil || len(conf.Admin.Password) == 0 {
-			fmt.Printf("Error: %v\n", err)
-			return
-		}
-
-		AdminPassword = conf.Admin.Password
-		AdminBind = conf.Admin.Bind
-	} else {
-		AdminBind = defaultAdminBind
-	}
-
-	fmt.Printf("Attempting to connect to cjdns...")
-	user, err := admin.Connect(AdminBind, AdminPassword)
-	if err != nil {
-		if e, ok := err.(net.Error); ok {
-			if e.Timeout() {
-				fmt.Println("\nConnection timed out")
-			} else if e.Temporary() {
-				fmt.Println("\nTemporary error (not sure what that means!)")
-			} else {
-				fmt.Println("\nUnable to connect to cjdns:", e)
-			}
-		} else {
-			fmt.Println("\nError:", err)
-		}
-		return
-	}
-
-	println("Connected")
-	defer user.Conn.Close()
 	arguments := fs.Args()
 	data := arguments[fs.NFlag()-fs.NFlag():]
 
 	//Setup variables now so that if the program is killed we can still finish what we're doing
 	ping := &Ping{}
-	var loggingStreamID string
 
+	var globalData Data
 	// capture ctrl+c 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
@@ -171,7 +149,7 @@ func main() {
 			fmt.Printf("\n")
 			if command == "log" {
 				//unsubscribe from logging
-				_, err := admin.AdminLog_unsubscribe(user, loggingStreamID)
+				_, err := admin.AdminLog_unsubscribe(globalData.User, globalData.LoggingStreamID)
 				if err != nil {
 					fmt.Printf("%v\n", err)
 					return
@@ -182,31 +160,66 @@ func main() {
 				outputPing(ping)
 			}
 			//close all the channels
-			for _, c := range user.Channels {
+			for _, c := range globalData.User.Channels {
 				close(c)
 			}
-			user.Conn.Close()
+			globalData.User.Conn.Close()
 			return
 		}
 	}()
 
 	switch command {
-
-	case traceCmd:
-		target, err := setTarget(data, false)
+	case passGenCmd:
+		// Prints a random alphanumberic password between 15 and 50 characters long
+		// TODO(inies): Make more better
+		println(randString(15, 50))
+	case pubKeyToIPcmd:
+		var ip []byte
+		if len(data) > 0 {
+			if len(data[0]) == 52 || len(data[0]) == 54 {
+				ip = []byte(data[0])
+			} else {
+				println("Invalid public key")
+				return
+			}
+		} else {
+			println("Invalid public key")
+			return
+		}
+		parsed, err := admin.PubKeyToIP(ip)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		doTraceroute(user, target)
+		fmt.Printf("%v\n", parsed)
+	case traceCmd:
+		user, err := connect()
+		if err != nil {
+			fmt.Println("Error:", err)
+			return
+		}
+		globalData.User = user
+		target, err := setTarget(data, false)
+		if err != nil {
+			fmt.Println("Error:", err)
+			return
+		}
+		doTraceroute(globalData.User, target)
 
 	case routeCmd:
+
 		target, err := setTarget(data, true)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
-		table := getTable(user)
+		user, err := connect()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		globalData.User = user
+		table := getTable(globalData.User)
 		sort.Sort(ByQuality{table})
 		count := 0
 		for _, v := range table {
@@ -227,33 +240,59 @@ func main() {
 			fmt.Println(err)
 			return
 		}
+		user, err := connect()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		globalData.User = user
 		ping.Target = target
 		if PingCount != defaultPingCount {
 			// ping only as much as the user asked for
 			for i := 1; i <= PingCount; i++ {
-				err := pingNode(user, ping)
+				start := time.Duration(time.Now().UTC().UnixNano())
+				err := pingNode(globalData.User, ping)
 				if err != nil {
-					fmt.Println(err)
+					if err.Error() != "Socket closed" {
+						fmt.Println(err)
+					}
 					return
 				}
 				println(ping.Response)
+				// Send 1 ping per second
+				now := time.Duration(time.Now().UTC().UnixNano())
+				time.Sleep(start + time.Second - now)
+
 			}
 		} else {
 			// ping until we're told otherwise
 			for {
-				err := pingNode(user, ping)
+				start := time.Duration(time.Now().UTC().UnixNano())
+				err := pingNode(globalData.User, ping)
 				if err != nil {
-					fmt.Println(err)
+					if err.Error() != "Socket closed" {
+						fmt.Println(err)
+					}
 					return
 				}
 				println(ping.Response)
+				// Send 1 ping per second
+				now := time.Duration(time.Now().UTC().UnixNano())
+				time.Sleep(start + time.Second - now)
+
 			}
 		}
 		outputPing(ping)
 
 	case logCmd:
+		user, err := connect()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		globalData.User = user
 		var response chan map[string]interface{}
-		response, loggingStreamID, err = admin.AdminLog_subscribe(user, LogFile, LogLevel, LogFileLine)
+		response, globalData.LoggingStreamID, err = admin.AdminLog_subscribe(globalData.User, LogFile, LogLevel, LogFileLine)
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
 			return
@@ -270,8 +309,14 @@ func main() {
 		}
 
 	case peerCmd:
+		user, err := connect()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		globalData.User = user
 		peers := make([]*Route, 0)
-		table := getTable(user)
+		table := getTable(globalData.User)
 		sort.Sort(ByQuality{table})
 		fmt.Println("Finding all connected peers")
 
@@ -318,20 +363,32 @@ func main() {
 		// git log -1 --date=iso --pretty=format:"%ad" <hash>
 
 	case killCmd:
-		_, err := admin.Core_exit(user)
+		user, err := connect()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		globalData.User = user
+		_, err = admin.Core_exit(globalData.User)
 		if err != nil {
 			fmt.Printf("%v\n", err)
 			return
 		}
 		alive := true
-		for ; alive; alive, _ = admin.SendPing(user, 1000) {
+		for ; alive; alive, _ = admin.SendPing(globalData.User, 1000) {
 			runtime.Gosched() //play nice
 		}
 		println("cjdns is shutting down...")
 
 	case dumpCmd:
+		user, err := connect()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		globalData.User = user
 		// TODO: add flag to show zero link quality routes, by default hide them
-		table := getTable(user)
+		table := getTable(globalData.User)
 		sort.Sort(ByQuality{table})
 		k := 1
 		for _, v := range table {
@@ -341,8 +398,14 @@ func main() {
 			}
 		}
 	case "memory":
+		user, err := connect()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		globalData.User = user
 		println("Bye bye cjdns! This command causes a crash. Keep trying and maybe one day cjd will fix it :)")
-		response, err := admin.Memory(user)
+		response, err := admin.Memory(globalData.User)
 		if err != nil {
 			fmt.Printf("%v\n", err)
 			return

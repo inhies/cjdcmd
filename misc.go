@@ -5,10 +5,64 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/inhies/go-cjdns/admin"
+	"github.com/inhies/go-cjdns/config"
+	"math/rand"
 	"net"
 	"regexp"
 	"strings"
 )
+
+func readConfig() (conf *config.Config, err error) {
+	if AdminPassword == defaultPass {
+		conf, err = config.LoadMinConfig(File)
+		//fmt.Printf("\nReading config file from %v\n", File)
+		if err != nil || len(conf.Admin.Password) == 0 {
+			return
+		}
+
+		AdminPassword = conf.Admin.Password
+		AdminBind = conf.Admin.Bind
+	} else {
+		AdminBind = defaultAdminBind
+	}
+	return
+}
+func adminConnect() (user *admin.Admin, err error) {
+	//fmt.Printf("Attempting to connect to cjdns...")
+	user, err = admin.Connect(AdminBind, AdminPassword)
+	if err != nil {
+		println("Asdfasfasdf")
+		if e, ok := err.(net.Error); ok {
+			if e.Timeout() {
+				fmt.Println("\nConnection timed out")
+			} else if e.Temporary() {
+				fmt.Println("\nTemporary error (not sure what that means!)")
+			} else {
+				fmt.Println("\nUnable to connect to cjdns:", e)
+			}
+		} else {
+			fmt.Println("\nError:", err)
+		}
+		return
+	}
+
+	//println("Connected")
+	return
+}
+func connect() (user *admin.Admin, err error) {
+	_, err = readConfig()
+	if err != nil {
+		///fmt.Println(err)
+		return
+	}
+	user, err = adminConnect()
+	if err != nil {
+		//fmt.Println(err)
+		return
+	}
+	//defer user.Conn.Close()
+	return
+}
 
 // Fills out an IPv6 address to the full 32 bytes
 func padIPv6(ip net.IP) string {
@@ -136,10 +190,36 @@ func usage() {
 	println("ping <ipv6 address, hostname, or routing path>     sends a cjdns ping to the specified node")
 	println("route <ipv6 address, hostname, or routing path>    prints out all routes to an IP or the IP to a route")
 	println("traceroute <ipv6 address or hostname> [-t timeout] performs a traceroute by pinging each known hop to the target on all known paths")
+	println("ip <cjdns public key>                              converts a cjdns public key to the corresponding IPv6 address")
+	println("passgen                                            generates a random alphanumeric password between 15 and 50 characters in length")
 	println("log [-l level] [-file file] [-line line]           prints cjdns log to stdout")
 	println("peers                                              displays a list of currently connected peers")
 	println("dump                                               dumps the routing table to stdout")
 	println("kill                                               tells cjdns to gracefully exit")
 	println("")
 	println("Please use `cjdcmd --help` for a list of flags.")
+}
+
+// Returns a random alphanumeric string where length is <= max >= min
+func randString(min, max int) string {
+	r := myRand(min, max, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789")
+	return r
+}
+
+// Returns a random character from the specified string where length is <= max >= min
+func myRand(min, max int, char string) string {
+
+	var length int
+
+	if min < max {
+		length = min + rand.Intn(max-min)
+	} else {
+		length = min
+	}
+
+	buf := make([]byte, length)
+	for i := 0; i < length; i++ {
+		buf[i] = char[rand.Intn(len(char)-1)]
+	}
+	return string(buf)
 }

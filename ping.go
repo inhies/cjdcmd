@@ -52,8 +52,9 @@ func pingNode(user *admin.Admin, ping *Ping) (err error) {
 		}
 	} else {
 		ping.Failed++
-		err = fmt.Errorf(response.Error)
+		//	err = fmt.Errorf(response.Error)
 		ping.Error = response.Error
+		ping.Response = response.Error
 		return
 	}
 	return

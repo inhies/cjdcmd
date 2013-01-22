@@ -61,13 +61,15 @@ Using cjdcmd
 
 Once you have cjdcmd installed you can run it without any arguments to get a list of commands or run it with the flag `--help` to get a list of all support options. Currently cjdcmd offers the following commands:
     
-	ping  <cjdns IPv6 address, hostname, or cjdns path (obtained with route command)>
-	route <cjdns IPv6 address, hostname, or cjdns path (obtained with route command)>
-	traceroute <cjdns IPv6 address or hostname>
-	log [-l level] [-file file] [-line line]
-	peers
-	dump
-	kill
+	ping <ipv6 address, hostname, or routing path>     sends a cjdns ping to the specified node
+	route <ipv6 address, hostname, or routing path>    prints out all routes to an IP or the IP to a route
+	traceroute <ipv6 address or hostname> [-t timeout] performs a traceroute by pinging each known hop to the target on all known paths
+	ip <cjdns public key>                              converts a cjdns public key to the corresponding IPv6 address
+	passgen                                            generates a random alphanumeric password between 15 and 50 characters in length
+	log [-l level] [-file file] [-line line]           prints cjdns log to stdout
+	peers                                              displays a list of currently connected peers
+	dump                                               dumps the routing table to stdout
+	kill                                               tells cjdns to gracefully exit
 
 **NOTE:** if you don't specify the admin password in the flags then cjdcmd uses the cjdns configuration file to load the details needed to connect. It expects the file to be at `/etc/cjdroute.conf` however you can specify an alternate location with the `-f` or `--file` flags.
 
@@ -91,7 +93,7 @@ Ping will send a cjdns ping packet to the specified node. Note that this is not 
 
 #### Sample Output
 
-	$cjdcmd ping -c 4 -t 800 fcf9:11b1:c252:6176:0550:0c59:2bb5:229a
+	$ cjdcmd ping -c 4 -t 800 fcf9:11b1:c252:6176:0550:0c59:2bb5:229a
 	Attempting to connect to cjdns...Connected
 	Reply from fcf9:11b1:c252:6176:0550:0c59:2bb5:229a 721ms
 	Timeout from fcf9:11b1:c252:6176:0550:0c59:2bb5:229a after 830ms
@@ -113,7 +115,7 @@ Route is useful because it shows you the many different paths that are available
 
 With an IPv6 address:
 
-	$cjdcmd route fcf9:11b1:c252:6176:0550:0c59:2bb5:229a
+	$ cjdcmd route fcf9:11b1:c252:6176:0550:0c59:2bb5:229a
 	Attempting to connect to cjdns...Connected
 	IP: fcf9:11b1:c252:6176:0550:0c59:2bb5:229a -- Version: 0 -- Path: 0000.0000.0000.f969 -- Link: 0
 	IP: fcf9:11b1:c252:6176:0550:0c59:2bb5:229a -- Version: 0 -- Path: 0000.0000.0000.46cd -- Link: 0
@@ -121,7 +123,7 @@ With an IPv6 address:
 	
 Or with a path:	
 
-	$cjdcmd route 0000.0000.0000.001f
+	$ cjdcmd route 0000.0000.0000.001f
 	Attempting to connect to cjdns...Connected
 	IP: fcf9:11b1:c252:6176:0550:0c59:2bb5:229a -- Version: 1 -- Path: 0000.0000.0000.001f -- Link: 400
 
@@ -131,7 +133,7 @@ Traceroute will take all the possible routes to a specific target and then ping 
 
 #### Sample Output
 
-	$cjdcmd traceroute fcf9:11b1:c252:6176:0550:0c59:2bb5:229a
+	$ cjdcmd traceroute fcf9:11b1:c252:6176:0550:0c59:2bb5:229a
 	Attempting to connect to cjdns...Connected
 	Finding all routes to fcf9:11b1:c252:6176:0550:0c59:2bb5:229a
 	
@@ -151,13 +153,32 @@ Traceroute will take all the possible routes to a specific target and then ping 
 	IP: fcf9:11b1:c252:6176:0550:0c59:2bb5:229a -- Version: 1 -- Path: 0000.0000.0000.001f -- Link: 366 -- Time: 796ms 844ms 803ms
 	Found 3 routes
 
+### Ip
+
+IP converts a cjdns public key to the matching cjdns IPv6 address. This is useful for editing your peer details since oftentimes all that you will have is the public key.
+
+#### Sample Output:
+
+	$ cjdcmd ip r6jzx210usqbgnm3pdtm1z6btd14pvdtkn5j8qnpgqzknpggkuw0.k
+	fc68:cb2c:60db:cb96:19ac:34a8:fd34:03fc
+
+### Passgen
+
+Passgen will generate a random alphanumeric password between 15 and 50 characters long.
+
+#### Sample Output:
+
+	$ cjdcmd passgen
+	4hVIvpsqkQOTmwY7BdzwQXJe7RfDa3m2tNwulhoTF3K5
+
+
 ### Log
 
 Log will begin outputting log information from cjdns. You can optionally specify which level of information to receive which is either Debug, Info, Warn, Error,  or Critical. It also allows you to filter by a specific source code file or a specific line number from the source code. You can use any combination of these options to get the output that you desire. 
 
 #### Sample Output:
 
-	$cjdcmd log
+	$ cjdcmd log
 	Attempting to connect to cjdns...Connected
 	1 1357729794 DEBUG Ducttape.c:347 Got running session ver[1] send[12] recv[7] ip[fcd6:b2a5:e3cc:d78d:fc69:a90f:4bf7:4a02]
 	2 1357729794 DEBUG SearchStore.c:351 Received response in 781 milliseconds, gmrt now 1035
@@ -171,7 +192,7 @@ Peers will list the peers you are directly connected to. This will show both oth
 
 #### Sample Output
 
-	$cjdcmd peers
+	$ cjdcmd peers
 	Attempting to connect to cjdns...Connected
 	Finding all connected peers
 	IP: fc8e:753b:2e7f:2575:c895:80d1:d67d:0000 -- Path: 0000.0000.0000.0017 -- Link: 764
@@ -187,7 +208,7 @@ Dump will print the routing table to stdout, complete with IPv6 of the target no
 
 #### Sample Output:
 
-	$cjdcmd dump
+	$ cjdcmd dump
 	Attempting to connect to cjdns...Connected
 	1 IP: fc72:7d84:bac7:3ac2:60cb:e1b3:9025:7266 -- Version: 1 -- Path: 0000.0000.0000.0001 -- Link: 800
 	2 IP: fcd8:b768:9762:9808:3d3c:5cac:344c:5261 -- Version: 1 -- Path: 0000.0000.0053.4aad -- Link: 434
@@ -203,7 +224,7 @@ Kill will tell cjdns to shutdown and exit.
 
 #### Sample Output:
 
-	$cjdcmd kill
+	$ cjdcmd kill
 	Attempting to connect to cjdns...Connected
 	cjdns is shutting down...
 	
