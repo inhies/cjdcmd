@@ -65,7 +65,7 @@ Once you have cjdcmd installed you can run it without any arguments to get a lis
 	route <ipv6 address, hostname, or routing path>    prints out all routes to an IP or the IP to a route
 	traceroute <ipv6 address or hostname> [-t timeout] performs a traceroute by pinging each known hop to the target on all known paths
 	ip <cjdns public key>                              converts a cjdns public key to the corresponding IPv6 address
-	host <hostname>                                    returns a list of all know IP address for the specified hostname
+	host <ipv6 address or hostname>                    returns a list of all know IP address for the specified hostname
 	passgen                                            generates a random alphanumeric password between 15 and 50 characters in length
 	log [-l level] [-file file] [-line line]           prints cjdns log to stdout
 	peers                                              displays a list of currently connected peers
@@ -166,13 +166,15 @@ IP converts a cjdns public key to the matching cjdns IPv6 address. This is usefu
 
 ### Host
 
-Host will lookup the cjdns IPv6 address for teh given hostname. It first tries using your default DNS settings, and if no results are found will attempt to use HypeDNS.
+Host will lookup the cjdns IPv6 address for the given hostname, or will return the hostname for a given IPv6 address. It first tries using your default DNS settings and if no results are found will attempt to use HypeDNS.
 
 #### Sample Output:
 
 	$ cjdcmd host nodeinfo.hype
 	nodeinfo.hype has IPv6 address fc5d:baa5:61fc:6ffd:9554:67f0:e290:7535
 
+	$ cjdcmd host fc5d:baa5:61fc:6ffd:9554:67f0:e290:7535
+	nodeinfo.hype
 	
 ### Passgen
 

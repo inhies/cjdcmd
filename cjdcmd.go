@@ -6,16 +6,16 @@ import (
 	"fmt"
 	"github.com/inhies/go-cjdns/admin"
 	"math/rand"
-	"net"
 	"os"
 	"os/signal"
+	"regexp"
 	"runtime"
 	"sort"
 	"time"
 )
 
 const (
-	Version = "0.2.4"
+	Version = "0.2.5"
 
 	defaultPingTimeout  = 5000 //5 seconds
 	defaultPingCount    = 0
@@ -43,9 +43,6 @@ const (
 
 	magicalLinkConstant = 5366870.0 //Determined by cjd way back in the dark ages.
 
-	ipRegex   = "^fc[a-f0-9]{1,2}:([a-f0-9]{0,4}:){2,6}[a-f0-9]{1,4}$"
-	pathRegex = "([0-9a-f]{4}\\.){3}[0-9a-f]{4}"
-	hostRegex = "^([a-zA-Z0-9]([a-zA-Z0-9\\-\\.]{0,}[a-zA-Z0-9]))$"
 )
 
 var (
@@ -176,35 +173,33 @@ func main() {
 
 	switch command {
 	case hostCmd:
-		var ip string
-		err := checkTarget(data, false)
-		if err != nil {
-			fmt.Println("Error:", err)
+		if len(data) == 0 {
+			println("Invalid hostname or IPv6 address specified")
 			return
 		}
+		input := data[0]
+		validIP, _ := regexp.MatchString(ipRegex, input)
+		validHost, _ := regexp.MatchString(hostRegex, input)
 
-		// Try the system DNS setup
-		result, _ := net.LookupHost(data[0])
-		if len(result) > 0 {
-			goto printResults
-		}
-
-		// Try with hypedns
-		ip, err = lookup(data[0])
-
-		if ip == "" || err != nil {
-			println("Unable to resovle hostname. This is usually caused by not having a route to hypedns. Please try again in a few seconds.")
-			return
-		}
-
-		result = append(result, ip)
-
-	printResults:
-		for _, addr := range result {
-			tIP := net.ParseIP(addr)
-			if tIP[0] == 0xfc {
+		if validIP {
+			hostname, err := resolveIP(input)
+			if err != nil {
+				fmt.Printf("Error: %v\n", err)
+				return
+			}
+			fmt.Printf("%v\n", hostname)
+		} else if validHost {
+			ips, err := resolveHost(input)
+			if err != nil {
+				fmt.Printf("Error: %v\n", err)
+				return
+			}
+			for _, addr := range ips {
 				fmt.Printf("%v has IPv6 address %v\n", data[0], addr)
 			}
+		} else {
+			println("Invalid hostname or IPv6 address specified")
+			return
 		}
 
 	case passGenCmd:
