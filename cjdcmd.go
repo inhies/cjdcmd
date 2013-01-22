@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	Version = "0.2.5"
+	Version = "0.3"
 
 	defaultPingTimeout  = 5000 //5 seconds
 	defaultPingCount    = 0
@@ -224,7 +224,14 @@ func main() {
 			fmt.Println(err)
 			return
 		}
-		fmt.Printf("%v\n", parsed)
+		var tText string
+		hostname, _ := resolveIP(string(parsed))
+		if hostname != "" {
+			tText = string(parsed) + " (" + hostname + ")"
+		} else {
+			tText = string(parsed)
+		}
+		fmt.Printf("%v\n", tText)
 
 	case traceCmd:
 		user, err := connect()
@@ -233,12 +240,12 @@ func main() {
 			return
 		}
 		globalData.User = user
-		target, err := setTarget(data, false)
+		target, err := setTarget(data, true)
 		if err != nil {
 			fmt.Println("Error:", err)
 			return
 		}
-		doTraceroute(globalData.User, target.Target)
+		doTraceroute(globalData.User, target)
 
 	case routeCmd:
 
@@ -252,8 +259,17 @@ func main() {
 			fmt.Println(err)
 			return
 		}
+		var tText string
+		hostname, _ := resolveIP(target.Target)
+		if hostname != "" {
+			tText = target.Target + " (" + hostname + ")"
+		} else {
+			tText = target.Target
+		}
+		fmt.Printf("Showing all routes to %v\n", tText)
 		globalData.User = user
 		table := getTable(globalData.User)
+
 		sort.Sort(ByQuality{table})
 		count := 0
 		for _, v := range table {
@@ -267,7 +283,6 @@ func main() {
 		fmt.Println("Found", count, "routes")
 
 	case pingCmd:
-		// TODO: allow input of IP, hex path with and without dots and leading zeros, and binary path
 		// TODO: allow pinging of entire routing table
 		target, err := setTarget(data, true)
 		if err != nil {
@@ -281,7 +296,39 @@ func main() {
 		}
 		globalData.User = user
 		ping.Target = target.Target
-		fmt.Printf("PING %v (%v)\n", target.Supplied, target.Target)
+
+		var tText string
+
+		// If we were given an IP then try to resolve the hostname
+		if validIP(target.Supplied) {
+			hostname, _ := resolveIP(target.Target)
+			if hostname != "" {
+				tText = target.Supplied + " (" + hostname + ")"
+			} else {
+				tText = target.Supplied
+			}
+			// If we were given a path, resolve the IP
+		} else if validPath(target.Supplied) {
+			tText = target.Supplied
+			table := getTable(globalData.User)
+			for _, v := range table {
+				if v.Path == target.Supplied {
+					// We have the IP now
+					tText = target.Supplied + " (" + v.IP + ")"
+
+					// Try to get the hostname
+					hostname, _ := resolveIP(v.IP)
+					if hostname != "" {
+						tText = target.Supplied + " (" + v.IP + " (" + hostname + "))"
+					}
+				}
+			}
+			// We were given a hostname, everything is already done for us!
+		} else if validHost(target.Supplied) {
+			tText = target.Supplied + " (" + target.Target + ")"
+		}
+		fmt.Printf("PING %v \n", tText)
+
 		if PingCount != defaultPingCount {
 			// ping only as much as the user asked for
 			for i := 1; i <= PingCount; i++ {
@@ -390,9 +437,19 @@ func main() {
 				peers = append(peers, peer)
 			}
 		}
+		count := 0
 		for _, p := range peers {
-			fmt.Printf("IP: %v -- Path: %s -- Link: %.0f\n", p.IP, p.Path, p.Link)
+			var tText string
+			hostname, _ := resolveIP(p.IP)
+			if hostname != "" {
+				tText = p.IP + " (" + hostname + ")"
+			} else {
+				tText = p.IP
+			}
+			fmt.Printf("IP: %v -- Path: %s -- Link: %.0f\n", tText, p.Path, p.Link)
+			count++
 		}
+		println("Connected to", count, "peers")
 	case versionCmd:
 		// TODO(inhies): Ping a specific node and return it's cjdns version, or
 		// ping all nodes in the routing table and get their versions

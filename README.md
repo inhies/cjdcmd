@@ -1,7 +1,25 @@
 cjdcmd
 ======
 
-cjdcmd is a command line tool for interfacing with [cjdns](https://github.com/cjdelisle/cjdns), a mesh network routing engine designed for security, scalability, speed, and ease of use.
+cjdcmd is a command line tool for interfacing with [cjdns](https://github.com/cjdelisle/cjdns), a mesh network routing engine designed for security, scalability, speed, and ease of use. It's intent is to allow easy debugging of node and network problems as well as make it easier to work with the cjdns program itself.
+
+What's New
+----------
+
+I will (try) to keep this updated with important changes...
+
+#### Version 0.3:
+
+* Access to the cjdns configuration file and the cjdns admin port are no longer required by default. These will only be accessed when needed
+* The `passgen` command has been added to make creating passwords for new peers easier.
+* Hostnames are now resolved wherever possible; this makes the output much more useful.
+* When resolving hostnames, cjdcmd first tries your regular system DNS setup, including /etc/hosts, and then it will try HypeDNS if the former failed. I recommend setting hostnames in /etc/hosts as HypeDNS can be unreliable and Internet DNS servers cannot resolve cjdns IPv6 addresses to hostnames.
+* Traceroute now supports passing of a cjdns path to it so that you can debug just one particular route. 
+* The output of the `ping` command now matches the standard ping programs output more closely.
+* The `ping` command will no longer quit on the first error.
+* Added -interval flag to the `ping` command so you can set longer delays between pings.
+* Added `ip` command to convert a cjdns public key to the corresponding cjdns IPv6 address; great for cleaning up your config file.
+
 
 Installation
 ------------
@@ -61,16 +79,16 @@ Using cjdcmd
 
 Once you have cjdcmd installed you can run it without any arguments to get a list of commands or run it with the flag `--help` to get a list of all support options. Currently cjdcmd offers the following commands:
     
-	ping <ipv6 address, hostname, or routing path>     sends a cjdns ping to the specified node
-	route <ipv6 address, hostname, or routing path>    prints out all routes to an IP or the IP to a route
-	traceroute <ipv6 address or hostname> [-t timeout] performs a traceroute by pinging each known hop to the target on all known paths
-	ip <cjdns public key>                              converts a cjdns public key to the corresponding IPv6 address
-	host <ipv6 address or hostname>                    returns a list of all know IP address for the specified hostname
-	passgen                                            generates a random alphanumeric password between 15 and 50 characters in length
-	log [-l level] [-file file] [-line line]           prints cjdns log to stdout
-	peers                                              displays a list of currently connected peers
-	dump                                               dumps the routing table to stdout
-	kill                                               tells cjdns to gracefully exit
+	ping <ipv6 address, hostname, or routing path>       sends a cjdns ping to the specified node
+	route <ipv6 address, hostname, or routing path>      prints out all routes to an IP or the IP to a route
+	traceroute <ipv6 address, hostname, or routing path> [-t timeout] performs a traceroute by pinging each known hop to the target on all known paths
+	ip <cjdns public key>                                converts a cjdns public key to the corresponding IPv6 address
+	host <ipv6 address or hostname>                      returns a list of all know IP address for the specified hostname or the hostname for an address
+	passgen                                              generates a random alphanumeric password between 15 and 50 characters in length
+	log [-l level] [-file file] [-line line]             prints cjdns log to stdout
+	peers                                                displays a list of currently connected peers
+	dump                                                 dumps the routing table to stdout
+	kill                                                 tells cjdns to gracefully exit
 
 **NOTE:** if you don't specify the admin password in the flags then cjdcmd uses the cjdns configuration file to load the details needed to connect. It expects the file to be at `/etc/cjdroute.conf` however you can specify an alternate location with the `-f` or `--file` flags.
 
