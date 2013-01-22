@@ -27,8 +27,6 @@ func pingNode(user *admin.Admin, ping *Ping) (err error) {
 			ping.Error = "timeout"
 			ping.Failed++
 		} else {
-			// TODO(inhies): Perform a reverse DNS on the response IP, and format the output more like traditional ping, maybe?
-
 			ping.Success++
 			ping.Response = fmt.Sprintf("Reply from %v req=%v time=%v ms", ping.Target, ping.Success+ping.Failed, response.Time)
 
@@ -56,7 +54,6 @@ func pingNode(user *admin.Admin, ping *Ping) (err error) {
 		}
 	} else {
 		ping.Failed++
-		//	err = fmt.Errorf(response.Error)
 		ping.Error = response.Error
 		ping.Response = response.Error
 		return

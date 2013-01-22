@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"github.com/inhies/go-cjdns/admin"
-	"github.com/kylelemons/godebug/pretty"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -16,7 +15,7 @@ import (
 )
 
 const (
-	Version = "0.2.6"
+	Version = "0.3"
 
 	defaultPingTimeout  = 5000 //5 seconds
 	defaultPingCount    = 0
@@ -272,7 +271,6 @@ func main() {
 		table := getTable(globalData.User)
 
 		sort.Sort(ByQuality{table})
-		pretty.Print(table)
 		count := 0
 		for _, v := range table {
 			if v.IP == target.Target || v.Path == target.Target {
@@ -285,7 +283,6 @@ func main() {
 		fmt.Println("Found", count, "routes")
 
 	case pingCmd:
-		// TODO: allow input of IP, hex path with and without dots and leading zeros, and binary path
 		// TODO: allow pinging of entire routing table
 		target, err := setTarget(data, true)
 		if err != nil {

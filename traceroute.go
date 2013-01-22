@@ -21,7 +21,7 @@ type ByQuality struct{ Routes }
 
 func (s ByQuality) Less(i, j int) bool { return s.Routes[i].RawLink > s.Routes[j].RawLink }
 
-//TODO(inhies): Allow traceroute via path
+// TODO(inhies): Make the output nicely formatted
 func doTraceroute(user *admin.Admin, target Target) {
 	table := getTable(user)
 	usingPath := false
