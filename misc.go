@@ -161,7 +161,7 @@ func setTarget(data []string, usePath bool) (target Target, err error) {
 			var result []string
 
 			// Try with the local resolver
-			result, err = net.LookupHost(data[0])
+			result, _ = net.LookupHost(data[0])
 			for _, r := range result {
 				tIP := net.ParseIP(r)
 				if tIP[0] == 0xfc {
@@ -174,6 +174,7 @@ func setTarget(data []string, usePath bool) (target Target, err error) {
 			// Try with hypedns
 			ip, err = lookup(input)
 			if err != nil {
+				err = fmt.Errorf("Unable to resovle hostname. This is usually caused by not having a route to hypedns. Please try again in a few seconds.")
 				return
 			}
 			if ip == "" {
@@ -243,6 +244,7 @@ func usage() {
 	println("route <ipv6 address, hostname, or routing path>    prints out all routes to an IP or the IP to a route")
 	println("traceroute <ipv6 address or hostname> [-t timeout] performs a traceroute by pinging each known hop to the target on all known paths")
 	println("ip <cjdns public key>                              converts a cjdns public key to the corresponding IPv6 address")
+	println("host <hostname>                                    returns a list of all know IP address for the specified hostname")
 	println("passgen                                            generates a random alphanumeric password between 15 and 50 characters in length")
 	println("log [-l level] [-file file] [-line line]           prints cjdns log to stdout")
 	println("peers                                              displays a list of currently connected peers")

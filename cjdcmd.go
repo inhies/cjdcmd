@@ -15,10 +15,11 @@ import (
 )
 
 const (
-	Version = "0.2.3"
+	Version = "0.2.4"
 
-	defaultPingTimeout = 5000 //5 seconds
-	defaultPingCount   = 0
+	defaultPingTimeout  = 5000 //5 seconds
+	defaultPingCount    = 0
+	defaultPingInterval = float64(1)
 
 	defaultLogLevel    = "DEBUG"
 	defaultLogFile     = ""
@@ -38,6 +39,7 @@ const (
 	versionCmd    = "version"
 	pubKeyToIPcmd = "ip"
 	passGenCmd    = "passgen"
+	hostCmd       = "host"
 
 	magicalLinkConstant = 5366870.0 //Determined by cjd way back in the dark ages.
 
@@ -47,8 +49,9 @@ const (
 )
 
 var (
-	PingTimeout int
-	PingCount   int
+	PingTimeout  int
+	PingCount    int
+	PingInterval float64
 
 	LogLevel    string
 	LogFile     string
@@ -79,8 +82,9 @@ func init() {
 
 	fs = flag.NewFlagSet("cjdcmd", flag.ExitOnError)
 	const (
-		usagePingTimeout = "[ping][traceroute] specify the time in milliseconds cjdns should wait for a response"
-		usagePingCount   = "[ping][traceroute] specify the number of packets to send"
+		usagePingTimeout  = "[ping][traceroute] specify the time in milliseconds cjdns should wait for a response"
+		usagePingCount    = "[ping][traceroute] specify the number of packets to send"
+		usagePingInterval = "[ping] specify the delay between successive pings"
 
 		usageLogLevel    = "[log] specify the logging level to use"
 		usageLogFile     = "[log] specify the cjdns source file you wish to see log output from"
@@ -96,6 +100,9 @@ func init() {
 	fs.IntVar(&PingTimeout, "timeout", defaultPingTimeout, usagePingTimeout)
 	fs.IntVar(&PingTimeout, "t", defaultPingTimeout, usagePingTimeout+" (shorthand)")
 
+	fs.Float64Var(&PingInterval, "interval", defaultPingInterval, usagePingInterval)
+	fs.Float64Var(&PingInterval, "i", defaultPingInterval, usagePingInterval+" (shorthand)")
+
 	fs.IntVar(&PingCount, "count", defaultPingCount, usagePingCount)
 	fs.IntVar(&PingCount, "c", defaultPingCount, usagePingCount+" (shorthand)")
 
@@ -108,6 +115,7 @@ func init() {
 	fs.StringVar(&LogFile, "logfile", defaultLogFile, usageLogFile)
 	fs.IntVar(&LogFileLine, "line", defaultLogFileLine, usageLogFileLine)
 
+	// Seed the PRG
 	rand.Seed(time.Now().UTC().UnixNano())
 }
 
@@ -167,11 +175,42 @@ func main() {
 	}()
 
 	switch command {
+	case hostCmd:
+		var ip string
+		err := checkTarget(data, false)
+		if err != nil {
+			fmt.Println("Error:", err)
+			return
+		}
+
+		// Try the system DNS setup
+		result, _ := net.LookupHost(data[0])
+		if len(result) > 0 {
+			goto printResults
+		}
+
+		// Try with hypedns
+		ip, err = lookup(data[0])
+
+		if ip == "" || err != nil {
+			println("Unable to resovle hostname. This is usually caused by not having a route to hypedns. Please try again in a few seconds.")
+			return
+		}
+
+		result = append(result, ip)
+
+	printResults:
+		for _, addr := range result {
+			tIP := net.ParseIP(addr)
+			if tIP[0] == 0xfc {
+				fmt.Printf("%v has IPv6 address %v\n", data[0], addr)
+			}
+		}
 
 	case passGenCmd:
-		// Prints a random alphanumberic password between 15 and 50 characters long
-		// TODO(inies): Make more better
+		// TODO(inies): Make more good
 		println(randString(15, 50))
+
 	case pubKeyToIPcmd:
 		var ip []byte
 		if len(data) > 0 {
@@ -191,6 +230,7 @@ func main() {
 			return
 		}
 		fmt.Printf("%v\n", parsed)
+
 	case traceCmd:
 		user, err := connect()
 		if err != nil {
@@ -261,7 +301,7 @@ func main() {
 				println(ping.Response)
 				// Send 1 ping per second
 				now := time.Duration(time.Now().UTC().UnixNano())
-				time.Sleep(start + time.Second - now)
+				time.Sleep(start + (time.Duration(PingInterval) * time.Second) - now)
 
 			}
 		} else {
@@ -279,7 +319,7 @@ func main() {
 				println(ping.Response)
 				// Send 1 ping per second
 				now := time.Duration(time.Now().UTC().UnixNano())
-				time.Sleep(start + time.Second - now)
+				time.Sleep(start + (time.Duration(PingInterval) * time.Second) - now)
 
 			}
 		}
