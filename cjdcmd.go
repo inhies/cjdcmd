@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/inhies/go-cjdns/admin"
+	"github.com/kylelemons/godebug/pretty"
 	"math/rand"
 	"os"
 	"os/signal"
@@ -240,12 +241,12 @@ func main() {
 			return
 		}
 		globalData.User = user
-		target, err := setTarget(data, false)
+		target, err := setTarget(data, true)
 		if err != nil {
 			fmt.Println("Error:", err)
 			return
 		}
-		doTraceroute(globalData.User, target.Target)
+		doTraceroute(globalData.User, target)
 
 	case routeCmd:
 
@@ -269,7 +270,9 @@ func main() {
 		fmt.Printf("Showing all routes to %v\n", tText)
 		globalData.User = user
 		table := getTable(globalData.User)
+
 		sort.Sort(ByQuality{table})
+		pretty.Print(table)
 		count := 0
 		for _, v := range table {
 			if v.IP == target.Target || v.Path == target.Target {
