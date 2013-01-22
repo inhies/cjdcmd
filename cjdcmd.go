@@ -398,6 +398,7 @@ func main() {
 				peers = append(peers, peer)
 			}
 		}
+		count := 0
 		for _, p := range peers {
 			var tText string
 			hostname, _ := resolveIP(p.IP)
@@ -407,7 +408,9 @@ func main() {
 				tText = p.IP
 			}
 			fmt.Printf("IP: %v -- Path: %s -- Link: %.0f\n", tText, p.Path, p.Link)
+			count++
 		}
+		println("Connected to", count, "peers")
 	case versionCmd:
 		// TODO(inhies): Ping a specific node and return it's cjdns version, or
 		// ping all nodes in the routing table and get their versions
