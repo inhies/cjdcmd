@@ -399,7 +399,14 @@ func main() {
 			}
 		}
 		for _, p := range peers {
-			fmt.Printf("IP: %v -- Path: %s -- Link: %.0f\n", p.IP, p.Path, p.Link)
+			var tText string
+			hostname, _ := resolveIP(p.IP)
+			if hostname != "" {
+				tText = p.IP + " (" + hostname + ")"
+			} else {
+				tText = p.IP
+			}
+			fmt.Printf("IP: %v -- Path: %s -- Link: %.0f\n", tText, p.Path, p.Link)
 		}
 	case versionCmd:
 		// TODO(inhies): Ping a specific node and return it's cjdns version, or
