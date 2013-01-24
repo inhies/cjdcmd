@@ -159,25 +159,27 @@ selectIF:
 		return
 	}
 
-	if File == OutFile {
-		fmt.Printf("Overwrite %v? [y/N]: ", File)
-		if !gotYes(false) {
-			return
-		}
-		// Save to the input file if output file was not specified
-	} else if File != defaultFile && OutFile == defaultOutFile {
-		OutFile = File
-	}
-
-	// Open the file so we can get the permissions
-	stats, _ := os.Stat(File)
+	// Get the permissions from the input file
+	stats, err := os.Stat(File)
 	if err != nil {
 		fmt.Println("Error getting permissions for original file:", err)
 		return
 	}
 
+	// Check if the output file exists and prompt befoer overwriting
+	if _, err := os.Stat(OutFile); err == nil {
+		fmt.Printf("Overwrite %v? [y/N]: ", OutFile)
+		if !gotYes(false) {
+			return
+		}
+	}
+
+	if File != defaultFile && OutFile == defaultOutFile {
+		OutFile = File
+	}
+
 	fmt.Printf("Saving configuration to: %v... ", OutFile)
-	err = config.SaveConfig(File, conf, stats.Mode())
+	err = config.SaveConfig(OutFile, conf, stats.Mode())
 	if err != nil {
 		fmt.Println("\nError saving config:", err)
 		return
@@ -354,25 +356,27 @@ selectIF:
 
 	}
 
-	if File == OutFile {
-		fmt.Printf("Overwrite %v? [y/N]: ", File)
-		if !gotYes(false) {
-			return
-		}
-		// Save to the input file if output file was not specified
-	} else if File != defaultFile && OutFile == defaultOutFile {
-		OutFile = File
-	}
-
-	// Open the file so we can get the permissions
-	stats, _ := os.Stat(File)
+	// Get the permissions from the input file
+	stats, err := os.Stat(File)
 	if err != nil {
 		fmt.Println("Error getting permissions for original file:", err)
 		return
 	}
 
+	// Check if the output file exists and prompt befoer overwriting
+	if _, err := os.Stat(OutFile); err == nil {
+		fmt.Printf("Overwrite %v? [y/N]: ", OutFile)
+		if !gotYes(false) {
+			return
+		}
+	}
+
+	if File != defaultFile && OutFile == defaultOutFile {
+		OutFile = File
+	}
+
 	fmt.Printf("Saving configuration to: %v... ", OutFile)
-	err = config.SaveConfig(File, conf, stats.Mode())
+	err = config.SaveConfig(OutFile, conf, stats.Mode())
 	if err != nil {
 		fmt.Println("Error saving config:", err)
 		return
