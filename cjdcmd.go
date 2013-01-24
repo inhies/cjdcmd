@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	Version = "0.4.1"
+	Version = "0.4.2"
 
 	magicalLinkConstant = 5366870.0 //Determined by cjd way back in the dark ages.
 
@@ -202,6 +202,17 @@ func main() {
 			return
 		}
 		fmt.Printf("Loaded\n")
+
+		// Quick hack to make this work until I can write a proper function
+		// or Go gets fixed...
+		router := conf["router"].(map[string]interface{})
+		ipTunnel := router["ipTunnel"].(map[string]interface{})
+		if ipTunnel["allowedConnections"].([]interface{}) == nil {
+			ipTunnel["allowedConnections"] = make([]interface{}, 0)
+		}
+		if ipTunnel["outgoingConnections"].([]interface{}) == nil {
+			ipTunnel["outgoingConnections"] = make([]interface{}, 0)
+		}
 
 		// Get the permissions from the input file
 		stats, err := os.Stat(File)
