@@ -110,5 +110,6 @@ end:
 			ips = append(ips, padIPv6(net.ParseIP(addr)))
 		}
 	}
+
 	return
 }
