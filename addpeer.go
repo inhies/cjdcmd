@@ -20,6 +20,17 @@ func addPassword(data []string) {
 	}
 	fmt.Printf("Loaded\n")
 
+	// Quick hack to make this work until I can write a proper function
+	// or Go gets fixed...
+	router := conf["router"].(map[string]interface{})
+	ipTunnel := router["ipTunnel"].(map[string]interface{})
+	if ipTunnel["allowedConnections"].([]interface{}) == nil {
+		ipTunnel["allowedConnections"] = make([]interface{}, 0)
+	}
+	if ipTunnel["outgoingConnections"].([]interface{}) == nil {
+		ipTunnel["outgoingConnections"] = make([]interface{}, 0)
+	}
+
 	var input string
 	if len(data) == 0 {
 		fmt.Printf("You didnt supply a password, should I generate one for you? [Y/n]: ")
@@ -234,6 +245,17 @@ func addPeer(data []string) {
 		return
 	}
 	fmt.Printf("Loaded\n")
+
+	// Quick hack to make this work until I can write a proper function
+	// or Go gets fixed...
+	router := conf["router"].(map[string]interface{})
+	ipTunnel := router["ipTunnel"].(map[string]interface{})
+	if ipTunnel["allowedConnections"].([]interface{}) == nil {
+		ipTunnel["allowedConnections"] = make([]interface{}, 0)
+	}
+	if ipTunnel["outgoingConnections"].([]interface{}) == nil {
+		ipTunnel["outgoingConnections"] = make([]interface{}, 0)
+	}
 
 	if _, ok := conf["interfaces"]; !ok {
 		println("Your configuration file does not contain an 'interfaces' section")
