@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	Version = "0.4.2"
+	Version = "0.4.3"
 
 	magicalLinkConstant = 5366870.0 //Determined by cjd way back in the dark ages.
 
@@ -221,16 +221,16 @@ func main() {
 			return
 		}
 
+		if File != defaultFile && OutFile == defaultOutFile {
+			OutFile = File
+		}
+
 		// Check if the output file exists and prompt befoer overwriting
 		if _, err := os.Stat(OutFile); err == nil {
 			fmt.Printf("Overwrite %v? [y/N]: ", OutFile)
 			if !gotYes(false) {
 				return
 			}
-		}
-
-		if File != defaultFile && OutFile == defaultOutFile {
-			OutFile = File
 		}
 
 		fmt.Printf("Saving configuration to: %v... ", OutFile)
