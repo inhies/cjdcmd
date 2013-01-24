@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/inhies/go-cjdns/config"
+	"net"
 	"os"
 	"strings"
 )
@@ -66,6 +67,62 @@ func addPassword(data []string) {
 	pass := make(map[string]interface{})
 	pass["password"] = input
 
+	is := conf["interfaces"].(map[string]interface{})
+	if len(is) == 0 {
+		println("No valid interfaces found!")
+		return
+	} else if len(is) > 1 {
+		println("You have multiple interfaces to choose from, enter yes or no, or press enter for the default option:")
+	}
+
+	var useIface string
+	var i []interface{}
+
+selectIF:
+	for {
+		for key, _ := range is {
+			if len(is) > 1 {
+				fmt.Printf("Add password to '%v' [Y/n]: ", key)
+				if gotYes(true) {
+					i = is[key].([]interface{})
+					useIface = key
+					break selectIF
+				}
+			} else if len(is) == 1 {
+				i = is[key].([]interface{})
+				useIface = key
+			}
+		}
+		if useIface == "" {
+			println("You must select an interface to add to!")
+			continue
+		}
+
+		break
+	}
+	var iX map[string]interface{}
+	if len(i) > 1 {
+		fmt.Printf("You have multiple '%v' options to choose from, enter yes or no, or press enter for the default option\n", useIface)
+	selectIF2:
+		for _, iFace := range i {
+			temp := iFace.(map[string]interface{})
+			fmt.Printf("Add peer to '%v %v' [Y/n]: ", useIface, temp["bind"])
+			if gotYes(true) {
+				iX = iFace.(map[string]interface{})
+				break
+			}
+		}
+		if iX == nil {
+			println("You must select an interface to add to!")
+			goto selectIF2
+		}
+	} else if len(i) == 1 {
+		iX = i[0].(map[string]interface{})
+	} else {
+		fmt.Printf("No valid settings for '%v' found!\n", useIface)
+		return
+	}
+
 	// Optionally add meta information
 	for {
 		r := bufio.NewReader(os.Stdin)
@@ -88,6 +145,7 @@ func addPassword(data []string) {
 	}
 
 	println("Password information:")
+
 	for f, v := range pass {
 		fmt.Printf("\t\"%v\":\"%v\"\n", f, v)
 	}
@@ -97,7 +155,8 @@ func addPassword(data []string) {
 		conf["authorizedPasswords"] = append(passwords, pass)
 		println("Password added")
 	} else {
-		println("Skipped adding password")
+		println("Cancelled adding password")
+		return
 	}
 
 	if File == OutFile {
@@ -105,6 +164,9 @@ func addPassword(data []string) {
 		if !gotYes(false) {
 			return
 		}
+		// Save to the input file if output file was not specified
+	} else if File != defaultFile && OutFile == defaultOutFile {
+		OutFile = File
 	}
 
 	// Open the file so we can get the permissions
@@ -121,6 +183,23 @@ func addPassword(data []string) {
 		return
 	}
 	fmt.Printf("Saved\n")
+	var bind string
+	if strings.ToLower(useIface) == "ethinterface" {
+		iFace, err := net.InterfaceByName(iX["bind"].(string))
+		if err != nil {
+			fmt.Println("Unable to get interface's MAC address, you'll have to enter it yourself")
+			bind = "UNKNOWN"
+		} else {
+			bind = iFace.HardwareAddr.String()
+		}
+	} else {
+		bind = iX["bind"].(string)
+	}
+	println("Here are the details to be shared with your new peer:")
+	fmt.Printf("\"%v\":{\n", bind)
+	fmt.Printf("\t\"password\":\"%v\",\n", pass["password"].(string))
+	fmt.Printf("\t\"publicKey\":\"%v\"\n", conf["publicKey"].(string))
+	fmt.Printf("}\n")
 
 }
 func addPeer(data []string) {
@@ -260,6 +339,7 @@ selectIF:
 		}
 
 		println("Peer information:")
+
 		for f, v := range peer {
 			fmt.Printf("\t\"%v\":\"%v\"\n", f, v)
 		}
@@ -279,6 +359,9 @@ selectIF:
 		if !gotYes(false) {
 			return
 		}
+		// Save to the input file if output file was not specified
+	} else if File != defaultFile && OutFile == defaultOutFile {
+		OutFile = File
 	}
 
 	// Open the file so we can get the permissions

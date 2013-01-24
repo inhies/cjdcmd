@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	Version = "0.4"
+	Version = "0.4.1"
 
 	magicalLinkConstant = 5366870.0 //Determined by cjd way back in the dark ages.
 
@@ -215,6 +215,9 @@ func main() {
 			if !gotYes(false) {
 				return
 			}
+			// Save to the input file if output file was not specified
+		} else if File != defaultFile && OutFile == defaultOutFile {
+			OutFile = File
 		}
 		fmt.Printf("Saving configuration to: %v... ", OutFile)
 		err = config.SaveConfig(File, conf, stats.Mode())
