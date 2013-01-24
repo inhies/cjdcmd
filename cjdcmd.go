@@ -5,12 +5,17 @@ import (
 	"flag"
 	"fmt"
 	"github.com/inhies/go-cjdns/admin"
+	"github.com/inhies/go-cjdns/config"
+	//"github.com/kylelemons/godebug/pretty"
 	"math/rand"
 	"os"
 	"os/signal"
+	//"reflect"
+
 	"regexp"
 	"runtime"
 	"sort"
+
 	"time"
 )
 
@@ -143,15 +148,16 @@ func main() {
 	//Setup variables now so that if the program is killed we can still finish what we're doing
 	ping := &Ping{}
 
-	var globalData Data
-	// capture ctrl+c 
+	globalData := &Data{&admin.Admin{}, ""}
+
+	// capture ctrl+c (actually any kind of kill signal...) 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	go func() {
 		for _ = range c {
 			fmt.Printf("\n")
 			if command == "log" {
-				//unsubscribe from logging
+				// Unsubscribe from logging
 				_, err := admin.AdminLog_unsubscribe(globalData.User, globalData.LoggingStreamID)
 				if err != nil {
 					fmt.Printf("%v\n", err)
@@ -162,16 +168,42 @@ func main() {
 				//stop pinging and print results
 				outputPing(ping)
 			}
-			//close all the channels
+			// Close all the channels
 			for _, c := range globalData.User.Channels {
 				close(c)
 			}
-			globalData.User.Conn.Close()
-			return
+
+			// If we have an open connection, close it
+			if globalData.User.Conn != nil {
+				globalData.User.Conn.Close()
+			}
+
+			// Exit with no error
+			os.Exit(0)
 		}
 	}()
-
+	//fmt.Printf("FILE: %v\n", File)
 	switch command {
+	case "cleanconfig":
+		conf, err := config.LoadExtConfig(File)
+		if err != nil {
+			fmt.Println("Error loading config:", err)
+			return
+		}
+		err = config.SaveConfig("cjdroute.conf.clean", conf, 0666)
+		if err != nil {
+			fmt.Println("Error saving config:", err)
+			return
+		}
+	case "addpass":
+
+		addPassword(data)
+	case "addpeer":
+		if len(data) == 0 {
+			println("You must enter the peering details surrounded by single qoutes '<peer details>'")
+			return
+		}
+		addPeer(data[0])
 	case hostCmd:
 		if len(data) == 0 {
 			println("Invalid hostname or IPv6 address specified")

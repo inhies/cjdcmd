@@ -18,6 +18,24 @@ const (
 	hostRegex = "^([a-zA-Z0-9]([a-zA-Z0-9\\-\\.]{0,}[a-zA-Z0-9]))$"
 )
 
+// gotYes will read from stdin and if it is any variation of 'y' or 'yes' then it returns true
+// If defaultYes is set to true and the user presses enter without entering anything else it returns true
+func gotYes(defaultYes bool) bool {
+	var choice string
+	n, _ := fmt.Scanln(&choice)
+	if n == 0 {
+		if defaultYes {
+			return true
+		} else {
+			return false
+		}
+	}
+	if strings.ToLower(choice) == "y" || strings.ToLower(choice) == "yes" {
+		return true
+	}
+	return false
+}
+
 func readConfig() (conf *config.Config, err error) {
 	if AdminPassword == defaultPass {
 		conf, err = config.LoadMinConfig(File)
@@ -241,4 +259,13 @@ func myRand(min, max int, char string) string {
 		buf[i] = char[rand.Intn(len(char)-1)]
 	}
 	return string(buf)
+}
+
+func stripComments(b []byte) ([]byte, error) {
+	regComment, err := regexp.Compile("(?s)//.*?\n|/\\*.*?\\*/")
+	if err != nil {
+		return nil, err
+	}
+	out := regComment.ReplaceAllLiteral(b, nil)
+	return out, nil
 }
