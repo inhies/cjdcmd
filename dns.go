@@ -107,7 +107,7 @@ end:
 		tIP := net.ParseIP(addr)
 		// Only grab the cjdns IP's
 		if tIP[0] == 0xfc {
-			ips = append(ips, addr)
+			ips = append(ips, padIPv6(net.ParseIP(addr)))
 		}
 	}
 	return

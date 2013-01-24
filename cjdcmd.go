@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	Version = "0.3"
+	Version = "0.3.1"
 
 	defaultPingTimeout  = 5000 //5 seconds
 	defaultPingCount    = 0
