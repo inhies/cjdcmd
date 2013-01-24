@@ -20,7 +20,9 @@ import (
 )
 
 const (
-	Version = "0.3.1"
+	Version = "0.4"
+
+	magicalLinkConstant = 5366870.0 //Determined by cjd way back in the dark ages.
 
 	defaultPingTimeout  = 5000 //5 seconds
 	defaultPingCount    = 0
@@ -30,7 +32,9 @@ const (
 	defaultLogFile     = ""
 	defaultLogFileLine = 0
 
-	defaultFile      = "/etc/cjdroute.conf"
+	defaultFile    = "/etc/cjdroute.conf"
+	defaultOutFile = "/etc/cjdroute.conf"
+
 	defaultPass      = ""
 	defaultAdminBind = "127.0.0.1:11234"
 
@@ -45,9 +49,9 @@ const (
 	pubKeyToIPcmd = "ip"
 	passGenCmd    = "passgen"
 	hostCmd       = "host"
-
-	magicalLinkConstant = 5366870.0 //Determined by cjd way back in the dark ages.
-
+	cleanCfgCmd   = "cleanconfig"
+	addPeerCmd    = "addpeer"
+	addPassCmd    = "addpass"
 )
 
 var (
@@ -61,7 +65,8 @@ var (
 
 	fs *flag.FlagSet
 
-	File          string
+	File, OutFile string
+
 	AdminPassword string
 	AdminBind     string
 )
@@ -92,12 +97,16 @@ func init() {
 		usageLogFile     = "[log] specify the cjdns source file you wish to see log output from"
 		usageLogFileLine = "[log] specify the cjdns source file line to log"
 
-		usageFile = "[all] the cjdroute.conf configuration file to use, edit, or view"
+		usageFile    = "[all] the cjdroute.conf configuration file to use, edit, or view"
+		usageOutFile = "[all] the cjdroute.conf configuration file to save to"
 
 		usagePass = "[all] specify the admin password"
 	)
 	fs.StringVar(&File, "file", defaultFile, usageFile)
 	fs.StringVar(&File, "f", defaultFile, usageFile+" (shorthand)")
+
+	fs.StringVar(&OutFile, "outfile", defaultOutFile, usageOutFile)
+	fs.StringVar(&OutFile, "o", defaultOutFile, usageOutFile+" (shorthand)")
 
 	fs.IntVar(&PingTimeout, "timeout", defaultPingTimeout, usagePingTimeout)
 	fs.IntVar(&PingTimeout, "t", defaultPingTimeout, usagePingTimeout+" (shorthand)")
@@ -184,26 +193,42 @@ func main() {
 	}()
 	//fmt.Printf("FILE: %v\n", File)
 	switch command {
-	case "cleanconfig":
+	case cleanCfgCmd:
+		// Load the config file
+		fmt.Printf("Loading configuration from: %v... ", File)
 		conf, err := config.LoadExtConfig(File)
 		if err != nil {
 			fmt.Println("Error loading config:", err)
 			return
 		}
-		err = config.SaveConfig("cjdroute.conf.clean", conf, 0666)
+		fmt.Printf("Loaded\n")
+
+		// Open the file so we can get the permissions
+		stats, _ := os.Stat(File)
+		if err != nil {
+			fmt.Println("Error getting permissions for original file:", err)
+			return
+		}
+
+		if File == OutFile {
+			fmt.Printf("Overwrite %v? [y/N]: ", File)
+			if !gotYes(false) {
+				return
+			}
+		}
+		fmt.Printf("Saving configuration to: %v... ", OutFile)
+		err = config.SaveConfig(File, conf, stats.Mode())
 		if err != nil {
 			fmt.Println("Error saving config:", err)
 			return
 		}
-	case "addpass":
-
+		fmt.Printf("Saved\n")
+	case addPassCmd:
 		addPassword(data)
-	case "addpeer":
-		if len(data) == 0 {
-			println("You must enter the peering details surrounded by single qoutes '<peer details>'")
-			return
-		}
-		addPeer(data[0])
+
+	case addPeerCmd:
+		addPeer(data)
+
 	case hostCmd:
 		if len(data) == 0 {
 			println("Invalid hostname or IPv6 address specified")

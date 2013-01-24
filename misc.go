@@ -71,15 +71,12 @@ func adminConnect() (user *admin.Admin, err error) {
 func connect() (user *admin.Admin, err error) {
 	_, err = readConfig()
 	if err != nil {
-		///fmt.Println(err)
 		return
 	}
 	user, err = adminConnect()
 	if err != nil {
-		//fmt.Println(err)
 		return
 	}
-	//defer user.Conn.Close()
 	return
 }
 
@@ -228,8 +225,11 @@ func usage() {
 	println("traceroute <ipv6 address, hostname, or routing path> [-t timeout] performs a traceroute by pinging each known hop to the target on all known paths")
 	println("ip <cjdns public key>                                converts a cjdns public key to the corresponding IPv6 address")
 	println("host <ipv6 address or hostname>                      returns a list of all know IP address for the specified hostname or the hostname for an address")
+	println("addpeer [-file] [-outfile] '<json peer details>'     adds the peer details to your config file")
+	println("addpass [-file] [-outfile] [password]                adds the password to the config if one was supplied, or generates one and then adds")
+	println("cleanconfig [-file] [-outfile]                       strips all comments from the config file and then saves it nicely formatted")
+	println("log [-l level] [-logfile file] [-line line]          prints cjdns log to stdout")
 	println("passgen                                              generates a random alphanumeric password between 15 and 50 characters in length")
-	println("log [-l level] [-file file] [-line line]             prints cjdns log to stdout")
 	println("peers                                                displays a list of currently connected peers")
 	println("dump                                                 dumps the routing table to stdout")
 	println("kill                                                 tells cjdns to gracefully exit")
