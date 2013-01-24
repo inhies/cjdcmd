@@ -84,8 +84,11 @@ Once you have cjdcmd installed you can run it without any arguments to get a lis
 	traceroute <ipv6 address, hostname, or routing path> [-t timeout] performs a traceroute by pinging each known hop to the target on all known paths
 	ip <cjdns public key>                                converts a cjdns public key to the corresponding IPv6 address
 	host <ipv6 address or hostname>                      returns a list of all know IP address for the specified hostname or the hostname for an address
+	addpeer [-file] [-outfile] '<json peer details>'     adds the peer details to your config file
+	addpass [-file] [-outfile] [password]                adds the password to the config if one was supplied, or generates one and then adds
+	cleanconfig [-file] [-outfile]                       strips all comments from the config file and then saves it nicely formatted
+	log [-l level] [-logfile file] [-line line]          prints cjdns log to stdout
 	passgen                                              generates a random alphanumeric password between 15 and 50 characters in length
-	log [-l level] [-file file] [-line line]             prints cjdns log to stdout
 	peers                                                displays a list of currently connected peers
 	dump                                                 dumps the routing table to stdout
 	kill                                                 tells cjdns to gracefully exit
@@ -93,7 +96,7 @@ Once you have cjdcmd installed you can run it without any arguments to get a lis
 **NOTE:** if you don't specify the admin password in the flags then cjdcmd uses the cjdns configuration file to load the details needed to connect. It expects the file to be at `/etc/cjdroute.conf` however you can specify an alternate location with the `-f` or `--file` flags.
 
 ### Flags
-
+	
 	-c=0: [ping][traceroute] specify the number of packets to send (shorthand)
 	-count=0: [ping][traceroute] specify the number of packets to send
 	-f="/etc/cjdroute.conf": [all] the cjdroute.conf configuration file to use, edit, or view (shorthand)
@@ -104,6 +107,8 @@ Once you have cjdcmd installed you can run it without any arguments to get a lis
 	-level="DEBUG": [log] specify the logging level to use
 	-line=0: [log] specify the cjdns source file line to log
 	-logfile="": [log] specify the cjdns source file you wish to see log output from
+	-o="/etc/cjdroute.conf": [all] the cjdroute.conf configuration file to save to (shorthand)
+	-outfile="/etc/cjdroute.conf": [all] the cjdroute.conf configuration file to save to
 	-p="": [all] specify the admin password (shorthand)
 	-pass="": [all] specify the admin password
 	-t=5000: [ping][traceroute] specify the time in milliseconds cjdns should wait for a response (shorthand)
@@ -194,14 +199,20 @@ Host will lookup the cjdns IPv6 address for the given hostname, or will return t
 	$ cjdcmd host fc5d:baa5:61fc:6ffd:9554:67f0:e290:7535
 	nodeinfo.hype
 	
-### Passgen
 
-Passgen will generate a random alphanumeric password between 15 and 50 characters long.
+### Addpeer
 
-#### Sample Output:
+Addpeer accepts a set of JSON peering details surrounded by ' ' and will walk you through adding them to your config, along with any additional information you would like to save with it. You can specify which file to read and which file to save to using the -file and -outfile flags, both of which are optional. 
+ 
 
-	$ cjdcmd passgen
-	4hVIvpsqkQOTmwY7BdzwQXJe7RfDa3m2tNwulhoTF3K5
+### Addpass
+
+Addpass optionally accepts a password, or will generate one if none was supplied, and saves it to your config along with any additional information you may wish to add. You can specify which file to read and which file to save to using the -file and -outfile flags, both of which are optional. 
+
+
+### Cleanconfig
+
+Cleanconfig will read your configuration file, strip the comments, and save it back nicely formatted. You can specify which file to read and which file to save to using the -file and -outfile flags, both of which are optional. 
 
 
 ### Log
@@ -216,6 +227,16 @@ Log will begin outputting log information from cjdns. You can optionally specify
 	3 1357729794 DEBUG Ducttape.c:347 Sending protocol 0 message ver[0] send[2] recv[25] ip[fc6a:d815:ee3b:9bf8:f380:3e58:bc44:2a77]
 	4 1357729795 DEBUG RouterModule.c:1137 Ping fc5d:baa5:61fc:6ffd:9554:67f0:e290:7535@0000.0004.fccf.025f
 	5 1357729795 DEBUG CryptoAuth.c:568 No traffic in [76] seconds, resetting connection.
+
+### Passgen
+
+Passgen will generate a random alphanumeric password between 15 and 50 characters long.
+
+#### Sample Output:
+
+	$ cjdcmd passgen
+	4hVIvpsqkQOTmwY7BdzwQXJe7RfDa3m2tNwulhoTF3K5
+
 
 ### Peers
 
