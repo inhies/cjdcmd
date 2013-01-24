@@ -8,6 +8,13 @@ What's New
 
 I will (try) to keep this updated with important changes...
 
+#### Version 0.4:
+
+* `addpeer` accepts a set of JSON peering details surrounded by single quotes (' ') and will walk you through adding them to your config, along with any additional information you would like to save with it. You can specify which file to read and which file to save to using the -file and -outfile flags, both of which are optional. 
+* `addpass` optionally accepts a password, or will generate one if none was supplied, and saves it to your config along with any additional information you may wish to add. You can specify which file to read and which file to save to using the -file and -outfile flags, both of which are optional. 
+* `cleanconfig` will read your configuration file, strip the comments, and save it back nicely formatted. You can specify which file to read and which file to save to using the -file and -outfile flags, both of which are optional. 
+
+
 #### Version 0.3:
 
 * Access to the cjdns configuration file and the cjdns admin port are no longer required by default. These will only be accessed when needed
