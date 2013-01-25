@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	Version = "0.4.3"
+	Version = "0.4.4"
 
 	magicalLinkConstant = 5366870.0 //Determined by cjd way back in the dark ages.
 
