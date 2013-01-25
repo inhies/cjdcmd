@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	Version = "0.4.3"
+	Version = "0.4.4"
 
 	magicalLinkConstant = 5366870.0 //Determined by cjd way back in the dark ages.
 
@@ -202,17 +202,6 @@ func main() {
 			return
 		}
 		fmt.Printf("Loaded\n")
-
-		// Quick hack to make this work until I can write a proper function
-		// or Go gets fixed...
-		router := conf["router"].(map[string]interface{})
-		ipTunnel := router["ipTunnel"].(map[string]interface{})
-		if ipTunnel["allowedConnections"].([]interface{}) == nil {
-			ipTunnel["allowedConnections"] = make([]interface{}, 0)
-		}
-		if ipTunnel["outgoingConnections"].([]interface{}) == nil {
-			ipTunnel["outgoingConnections"] = make([]interface{}, 0)
-		}
 
 		// Get the permissions from the input file
 		stats, err := os.Stat(File)
@@ -475,7 +464,7 @@ func main() {
 		peers := make([]*Route, 0)
 		table := getTable(globalData.User)
 		sort.Sort(ByQuality{table})
-		fmt.Println("Finding all connected peers")
+		//fmt.Println("Finding all connected peers")
 
 		for i := range table {
 
@@ -523,7 +512,7 @@ func main() {
 			fmt.Printf("IP: %v -- Path: %s -- Link: %.0f\n", tText, p.Path, p.Link)
 			count++
 		}
-		println("Connected to", count, "peers")
+		//println("Connected to", count, "peers")
 	case versionCmd:
 		// TODO(inhies): Ping a specific node and return it's cjdns version, or
 		// ping all nodes in the routing table and get their versions
