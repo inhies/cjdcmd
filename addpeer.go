@@ -12,6 +12,18 @@ import (
 
 func addPassword(data []string) {
 	// Load the config file
+	if File == "" {
+		cjdAdmin, err := loadCjdnsadmin()
+		if err != nil {
+			fmt.Println("Unable to load configuration file:", err)
+			return
+		}
+		File = cjdAdmin.Config
+		if File == "" {
+			fmt.Println("Please specify the configuration file in your .cjdnsadmin file or pass the --file flag.")
+			return
+		}
+	}
 	fmt.Printf("Loading configuration from: %v... ", File)
 	conf, err := config.LoadExtConfig(File)
 	if err != nil {
@@ -166,7 +178,7 @@ selectIF:
 		return
 	}
 
-	if File != defaultFile && OutFile == defaultOutFile {
+	if File != "" && OutFile == "" {
 		OutFile = File
 	}
 
@@ -227,6 +239,18 @@ func addPeer(data []string) {
 	}
 
 	// Load the config file
+	if File == "" {
+		cjdAdmin, err := loadCjdnsadmin()
+		if err != nil {
+			fmt.Println("Unable to load configuration file:", err)
+			return
+		}
+		File = cjdAdmin.Config
+		if File == "" {
+			fmt.Println("Please specify the configuration file in your .cjdnsadmin file or pass the --file flag.")
+			return
+		}
+	}
 	fmt.Printf("Loading configuration from: %v... ", File)
 	conf, err := config.LoadExtConfig(File)
 	if err != nil {
@@ -363,7 +387,7 @@ selectIF:
 		return
 	}
 
-	if File != defaultFile && OutFile == defaultOutFile {
+	if File != "" && OutFile == "" {
 		OutFile = File
 	}
 

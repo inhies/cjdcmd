@@ -2,21 +2,27 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"github.com/inhies/go-cjdns/admin"
 	"github.com/inhies/go-cjdns/config"
+	"io/ioutil"
 	"math/rand"
 	"os"
 	"os/signal"
+	"os/user"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 )
 
 const (
-	Version = "0.5"
+	Version = "0.5.1"
 
 	magicalLinkConstant = 5366870.0 //Determined by cjd way back in the dark ages.
 
@@ -28,11 +34,11 @@ const (
 	defaultLogFile     = ""
 	defaultLogFileLine = 0
 
-	defaultFile    = "/etc/cjdroute.conf"
-	defaultOutFile = "/etc/cjdroute.conf"
+	//defaultFile    = "/etc/cjdroute.conf"
+	//defaultOutFile = "/etc/cjdroute.conf"
 
 	defaultPass      = ""
-	defaultAdminBind = "127.0.0.1:11234"
+	defaultAdminBind = ""
 
 	pingCmd       = "ping"
 	logCmd        = "log"
@@ -49,6 +55,7 @@ const (
 	addPeerCmd    = "addpeer"
 	addPassCmd    = "addpass"
 	memoryCmd     = "memory"
+	cjdnsadminCmd = "cjdnsadmin"
 )
 
 var (
@@ -99,11 +106,12 @@ func init() {
 
 		usagePass = "[all] specify the admin password"
 	)
-	fs.StringVar(&File, "file", defaultFile, usageFile)
-	fs.StringVar(&File, "f", defaultFile, usageFile+" (shorthand)")
 
-	fs.StringVar(&OutFile, "outfile", defaultOutFile, usageOutFile)
-	fs.StringVar(&OutFile, "o", defaultOutFile, usageOutFile+" (shorthand)")
+	fs.StringVar(&File, "file", "", usageFile)
+	fs.StringVar(&File, "f", "", usageFile+" (shorthand)")
+
+	fs.StringVar(&OutFile, "outfile", "", usageOutFile)
+	fs.StringVar(&OutFile, "o", "", usageOutFile+" (shorthand)")
 
 	fs.IntVar(&PingTimeout, "timeout", defaultPingTimeout, usagePingTimeout)
 	fs.IntVar(&PingTimeout, "t", defaultPingTimeout, usagePingTimeout+" (shorthand)")
@@ -117,8 +125,8 @@ func init() {
 	fs.StringVar(&LogLevel, "level", defaultLogLevel, usageLogLevel)
 	fs.StringVar(&LogLevel, "l", defaultLogLevel, usageLogLevel+" (shorthand)")
 
-	fs.StringVar(&AdminPassword, "pass", defaultPass, usagePass)
-	fs.StringVar(&AdminPassword, "p", defaultPass, usagePass+" (shorthand)")
+	//fs.StringVar(&AdminPassword, "pass", defaultPass, usagePass)
+	//fs.StringVar(&AdminPassword, "p", defaultPass, usagePass+" (shorthand)")
 
 	fs.StringVar(&LogFile, "logfile", defaultLogFile, usageLogFile)
 	fs.IntVar(&LogFileLine, "line", defaultLogFileLine, usageLogFileLine)
@@ -155,7 +163,21 @@ func main() {
 	ping := &Ping{}
 
 	globalData := &Data{&admin.Admin{}, ""}
-
+	var err error
+	if File != "" {
+		File, err = filepath.Abs(File)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	}
+	if OutFile != "" {
+		OutFile, err = filepath.Abs(OutFile)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	}
 	// capture ctrl+c (actually any kind of kill signal...) 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
@@ -190,8 +212,87 @@ func main() {
 	}()
 	//fmt.Printf("FILE: %v\n", File)
 	switch command {
+	case cjdnsadminCmd:
+		if File == "" {
+			cjdAdmin, err := loadCjdnsadmin()
+			if err != nil {
+				fmt.Println("Unable to load configuration file:", err)
+				return
+			}
+			File = cjdAdmin.Config
+			if File == "" {
+				fmt.Println("Please specify the configuration file in your .cjdnsadmin file or pass the --file flag.")
+				return
+			}
+		}
+
+		fmt.Printf("Loading configuration from: %v... ", File)
+		conf, err := readConfig()
+		if err != nil {
+			fmt.Println("Error loading config:", err)
+			return
+		}
+		fmt.Printf("Loaded\n")
+
+		split := strings.LastIndex(conf.Admin.Bind, ":")
+		addr := conf.Admin.Bind[:split]
+		port := conf.Admin.Bind[split+1:]
+		portInt, err := strconv.Atoi(port)
+		if err != nil {
+			println("Error with cjdns admin bind settings")
+			return
+		}
+
+		//println(addr, port)
+
+		adminOut := CjdnsAdmin{
+			Address:  addr,
+			Port:     portInt,
+			Password: conf.Admin.Password,
+			Config:   File,
+		}
+		jsonout, err := json.MarshalIndent(adminOut, "", "\t")
+		if err != nil {
+			println("Unable to create JSON for .cjdnsadmin")
+			return
+		}
+
+		//fmt.Println(string(jsonout))
+
+		if OutFile == "" {
+			tUser, err := user.Current()
+			if err != nil {
+				println("I was unable to get your home directory, please manually specify where to save the file with --outfile")
+				return
+			}
+			OutFile = tUser.HomeDir + "/.cjdnsadmin"
+		}
+
+		println("Saving to", OutFile)
+		// Check if the output file exists and prompt befoer overwriting
+		if _, err := os.Stat(OutFile); err == nil {
+			fmt.Printf("Overwrite %v? [y/N]: ", OutFile)
+			if !gotYes(false) {
+				return
+			}
+		}
+		ioutil.WriteFile(OutFile, jsonout, 0600)
+
 	case cleanCfgCmd:
 		// Load the config file
+		if File == "" {
+			cjdAdmin, err := loadCjdnsadmin()
+			if err != nil {
+				fmt.Println("Unable to load configuration file:", err)
+				return
+			}
+			File = cjdAdmin.Config
+			if File == "" {
+				fmt.Println("Please specify the configuration file in your .cjdnsadmin file or pass the --file flag.")
+				return
+			}
+		}
+
 		fmt.Printf("Loading configuration from: %v... ", File)
 		conf, err := config.LoadExtConfig(File)
 		if err != nil {
@@ -207,7 +308,7 @@ func main() {
 			return
 		}
 
-		if File != defaultFile && OutFile == defaultOutFile {
+		if File != "" && OutFile == "" {
 			OutFile = File
 		}
 
@@ -294,7 +395,7 @@ func main() {
 		fmt.Printf("%v\n", tText)
 
 	case traceCmd:
-		user, err := connect()
+		user, err := adminConnect()
 		if err != nil {
 			fmt.Println("Error:", err)
 			return
@@ -314,7 +415,7 @@ func main() {
 			fmt.Println(err)
 			return
 		}
-		user, err := connect()
+		user, err := adminConnect()
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -349,7 +450,7 @@ func main() {
 			fmt.Println(err)
 			return
 		}
-		user, err := connect()
+		user, err := adminConnect()
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -428,7 +529,7 @@ func main() {
 		outputPing(ping)
 
 	case logCmd:
-		user, err := connect()
+		user, err := adminConnect()
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -470,7 +571,7 @@ func main() {
 		}
 
 	case peerCmd:
-		user, err := connect()
+		user, err := adminConnect()
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -534,7 +635,7 @@ func main() {
 		// git log -1 --date=iso --pretty=format:"%ad" <hash>
 
 	case killCmd:
-		user, err := connect()
+		user, err := adminConnect()
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -552,7 +653,7 @@ func main() {
 		println("cjdns is shutting down...")
 
 	case dumpCmd:
-		user, err := connect()
+		user, err := adminConnect()
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -569,7 +670,7 @@ func main() {
 			}
 		}
 	case memoryCmd:
-		user, err := connect()
+		user, err := adminConnect()
 		if err != nil {
 			fmt.Println(err)
 			return
