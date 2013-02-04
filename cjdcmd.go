@@ -48,6 +48,7 @@ const (
 	cleanCfgCmd   = "cleanconfig"
 	addPeerCmd    = "addpeer"
 	addPassCmd    = "addpass"
+	memoryCmd     = "memory"
 )
 
 var (
