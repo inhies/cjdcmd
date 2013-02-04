@@ -6,21 +6,17 @@ import (
 	"fmt"
 	"github.com/inhies/go-cjdns/admin"
 	"github.com/inhies/go-cjdns/config"
-	//"github.com/kylelemons/godebug/pretty"
 	"math/rand"
 	"os"
 	"os/signal"
-	//"reflect"
-
 	"regexp"
 	"runtime"
 	"sort"
-
 	"time"
 )
 
 const (
-	Version = "0.4.4"
+	Version = "0.5"
 
 	magicalLinkConstant = 5366870.0 //Determined by cjd way back in the dark ages.
 
@@ -445,10 +441,28 @@ func main() {
 		}
 		format := "%d %d %s %s:%d %s\n" // TODO: add user formatted output
 		counter := 1
+
+		// Spawn a routine to ping cjdns every 10 seconds to keep the connection alive
+		go func() {
+			for {
+				timeout := 10 * time.Second
+				time.Sleep(timeout)
+				ok, err := admin.SendPing(globalData.User, 1000)
+
+				if err != nil {
+					fmt.Println("Error sending periodic ping to cjdns:", err)
+					return
+				} else if !ok {
+					fmt.Println("Cjdns did not respond to the periodic ping.")
+					return
+				}
+			}
+		}()
 		for {
 			input, ok := <-response
 			if !ok {
-				break
+				fmt.Println("Error reading log response from cjdns.")
+				return
 			}
 			fmt.Printf(format, counter, input["time"], input["level"], input["file"], input["line"], input["message"])
 			counter++
@@ -553,20 +567,20 @@ func main() {
 				k++
 			}
 		}
-	case "memory":
+	case memoryCmd:
 		user, err := connect()
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
 		globalData.User = user
-		println("Bye bye cjdns! This command causes a crash. Keep trying and maybe one day cjd will fix it :)")
+
 		response, err := admin.Memory(globalData.User)
 		if err != nil {
 			fmt.Printf("%v\n", err)
 			return
 		}
-		fmt.Println(response)
+		fmt.Println(response, "bytes")
 	default:
 		fmt.Println("Invalid command", command)
 		usage()
