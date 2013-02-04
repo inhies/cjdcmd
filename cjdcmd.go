@@ -34,9 +34,6 @@ const (
 	defaultLogFile     = ""
 	defaultLogFileLine = 0
 
-	//defaultFile    = "/etc/cjdroute.conf"
-	//defaultOutFile = "/etc/cjdroute.conf"
-
 	defaultPass      = ""
 	defaultAdminBind = ""
 
@@ -210,7 +207,7 @@ func main() {
 			os.Exit(0)
 		}
 	}()
-	//fmt.Printf("FILE: %v\n", File)
+
 	switch command {
 	case cjdnsadminCmd:
 		if File == "" {
@@ -243,21 +240,18 @@ func main() {
 			return
 		}
 
-		//println(addr, port)
-
 		adminOut := CjdnsAdmin{
 			Address:  addr,
 			Port:     portInt,
 			Password: conf.Admin.Password,
 			Config:   File,
 		}
+
 		jsonout, err := json.MarshalIndent(adminOut, "", "\t")
 		if err != nil {
 			println("Unable to create JSON for .cjdnsadmin")
 			return
 		}
-
-		//fmt.Println(string(jsonout))
 
 		if OutFile == "" {
 			tUser, err := user.Current()
@@ -268,14 +262,16 @@ func main() {
 			OutFile = tUser.HomeDir + "/.cjdnsadmin"
 		}
 
-		println("Saving to", OutFile)
 		// Check if the output file exists and prompt befoer overwriting
 		if _, err := os.Stat(OutFile); err == nil {
 			fmt.Printf("Overwrite %v? [y/N]: ", OutFile)
 			if !gotYes(false) {
 				return
 			}
+		} else {
+			println("Saving to", OutFile)
 		}
+
 		ioutil.WriteFile(OutFile, jsonout, 0600)
 
 	case cleanCfgCmd:
