@@ -118,18 +118,9 @@ func adminConnect() (user *admin.Admin, err error) {
 			// Try getting it from the .cjdnsadmin file
 			cjdAdmin, err := loadCjdnsadmin()
 			if err != nil {
-				// .cjdnsadmin failed us, 
-				//_, err = readConfig()
-				//if err != nil {
 				err = fmt.Errorf("Unable to load configuration file:", err.Error())
 				return nil, err
-				//}
 			}
-			//File = cjdAdmin.Config
-			//if File == "" {
-			//	err = fmt.Errorf("Please specify the configuration file in your .cjdnsadmin file or pass the --file flag.")
-			//	return nil, err
-			//}
 
 			// Set the admin credentials from the .cjdnsadmin file
 			AdminPassword = cjdAdmin.Password
@@ -171,15 +162,6 @@ func adminConnect() (user *admin.Admin, err error) {
 	}
 	return
 }
-
-// Connect to a 
-//func connect() (user *admin.Admin, err error) {
-//	user, err = adminConnect()
-//	if err != nil {
-//		return
-//	}
-//	return
-//}
 
 // Attempt to read the .cjdnsadmin file from the users home directory
 func loadCjdnsadmin() (cjdnsAdmin *CjdnsAdmin, err error) {

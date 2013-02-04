@@ -122,9 +122,6 @@ func init() {
 	fs.StringVar(&LogLevel, "level", defaultLogLevel, usageLogLevel)
 	fs.StringVar(&LogLevel, "l", defaultLogLevel, usageLogLevel+" (shorthand)")
 
-	//fs.StringVar(&AdminPassword, "pass", defaultPass, usagePass)
-	//fs.StringVar(&AdminPassword, "p", defaultPass, usagePass+" (shorthand)")
-
 	fs.StringVar(&LogFile, "logfile", defaultLogFile, usageLogFile)
 	fs.IntVar(&LogFileLine, "line", defaultLogFileLine, usageLogFileLine)
 
@@ -209,6 +206,7 @@ func main() {
 	}()
 
 	switch command {
+	// Generates a .cjdnsadmin file
 	case cjdnsadminCmd:
 		if File == "" {
 			cjdAdmin, err := loadCjdnsadmin()
