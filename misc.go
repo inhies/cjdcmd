@@ -233,6 +233,7 @@ func usage() {
 	println("peers                                                displays a list of currently connected peers")
 	println("dump                                                 dumps the routing table to stdout")
 	println("kill                                                 tells cjdns to gracefully exit")
+	println("memory                                               returns the number of bytes of memory the router has allocated")
 	println("")
 	println("Please use `cjdcmd --help` for a list of flags.")
 }

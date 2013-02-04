@@ -8,6 +8,10 @@ What's New
 
 I will (try) to keep this updated with important changes...
 
+#### Version 0.5:
+* Updated to work with the latest version of cjdns that uses UDP to communicate via the admin port.
+* `memory` returns the number of bytes of memory allocated by the router.
+
 #### Version 0.4:
 
 * `addpeer` accepts a set of JSON peering details surrounded by single quotes (' ') and will walk you through adding them to your config, along with any additional information you would like to save with it. You can specify which file to read and which file to save to using the -file and -outfile flags, both of which are optional. 
@@ -99,6 +103,7 @@ Once you have cjdcmd installed you can run it without any arguments to get a lis
 	peers                                                displays a list of currently connected peers
 	dump                                                 dumps the routing table to stdout
 	kill                                                 tells cjdns to gracefully exit
+	memory                                               returns the number of bytes of memory the router has allocated
 
 **NOTE:** if you don't specify the admin password in the flags then cjdcmd uses the cjdns configuration file to load the details needed to connect. It expects the file to be at `/etc/cjdroute.conf` however you can specify an alternate location with the `-f` or `--file` flags.
 
@@ -283,10 +288,30 @@ Kill will tell cjdns to shutdown and exit.
 
 	$ cjdcmd kill
 	cjdns is shutting down...
-	
+
+
+### Memory
+
+Memory returns the number of bytes of memory the router has allocated. 
+
+#### Sample Output:
+
+	$ cjdcmd memory
+	90634 bytes
+		
 
 Troubleshooting
 ---------------
+
+### Connection Problems
+
+If you are usign an older version of cjdns, you may get an error similar to this:
+
+	Unable to connect to cjdns: dial tcp 127.0.0.1:11234: connection refused
+	dial tcp 127.0.0.1:11234: connection refused
+	
+Then you either specified the wrong location to connect to or your cjdns version is out of date. Check your configuration file and make sure you are using the latest version of cjdns. 
+
 
 ### Config File
 
@@ -297,6 +322,7 @@ The current format that cjdcmd supports can be found the [configuration file gui
 * Ensure there are `[` and `]` in the `"UDPInterface"` and `"ETHInterface"` sections, which you can find an example of [here](https://github.com/cjdelisle/cjdns/blob/master/rfcs/configure.md#connection-interfaces.)
 * Ensure there are commas after each `{"password":"abcdefghijklmnopqrstuvwxyz"}` section, except the last, like [here](https://github.com/cjdelisle/cjdns/blob/master/rfcs/configure.md#incoming-connections) where they are commented out. For example:
 
-	````{"password":"abcdefghijklmnopqrstuvwxyz"},
-	{"password":"ABCDEFGHIJKLMNOPQRSTUVWXYZ"},
-	{"password":"012345678901234567890123456789"}````
+
+		{"password":"abcdefghijklmnopqrstuvwxyz"},
+		{"password":"ABCDEFGHIJKLMNOPQRSTUVWXYZ"},
+		{"password":"012345678901234567890123456789"}
