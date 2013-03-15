@@ -3,12 +3,16 @@ package main
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"github.com/inhies/go-cjdns/admin"
 	"github.com/inhies/go-cjdns/config"
+	"io/ioutil"
 	"math/rand"
 	"net"
+	"os/user"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -17,6 +21,13 @@ const (
 	pathRegex = "([0-9a-f]{4}\\.){3}[0-9a-f]{4}"
 	hostRegex = "^([a-zA-Z0-9]([a-zA-Z0-9\\-\\.]{0,}[a-zA-Z0-9]))$"
 )
+
+type CjdnsAdmin struct {
+	Address  string `json:"addr"`
+	Port     int    `json:"port"`
+	Password string `json:"password"`
+	Config   string `json:"config,omitempty"`
+}
 
 // gotYes will read from stdin and if it is any variation of 'y' or 'yes' then it returns true
 // If defaultYes is set to true and the user presses enter without entering anything else it returns true
@@ -36,21 +47,104 @@ func gotYes(defaultYes bool) bool {
 	return false
 }
 
-func readConfig() (conf *config.Config, err error) {
-	if AdminPassword == defaultPass {
-		conf, err = config.LoadMinConfig(File)
-		if err != nil || len(conf.Admin.Password) == 0 {
-			return
-		}
+// Reads the .cjdnsadmin file and returns the structured contents
+func readCjdnsadmin(file string) (admin *CjdnsAdmin, err error) {
+	rawFile, err := ioutil.ReadFile(file)
+	if err != nil {
+		return nil, err
+	}
 
-		AdminPassword = conf.Admin.Password
-		AdminBind = conf.Admin.Bind
-	} else {
-		AdminBind = defaultAdminBind
+	raw, err := stripComments(rawFile)
+	if err != nil {
+		return nil, err
+	}
+
+	err = json.Unmarshal(raw, &admin)
+	if err != nil {
+		return nil, err
+	}
+	if err != nil {
+		// BUG(inhies): Find a better way of dealing with these errors.
+		if e, ok := err.(*json.SyntaxError); ok {
+			// BUG(inhies): Instead of printing x amount of characters, print the previous and following 2 lines
+			fmt.Println("Invalid JSON") //" at byte", e.Offset, "(after stripping comments...)")
+			fmt.Println("----------------------------------------")
+			fmt.Println(string(raw[e.Offset-60 : e.Offset+60]))
+			fmt.Println("----------------------------------------")
+		} else if _, ok := err.(*json.InvalidUTF8Error); ok {
+			fmt.Println("Invalid UTF-8")
+		} else if e, ok := err.(*json.InvalidUnmarshalError); ok {
+			fmt.Println("Invalid unmarshall type", e.Type)
+			fmt.Println(err)
+		} else if e, ok := err.(*json.UnmarshalFieldError); ok {
+			fmt.Println("Invalid unmarshall field", e.Field, e.Key, e.Type)
+		} else if e, ok := err.(*json.UnmarshalTypeError); ok {
+			fmt.Println("Invalid JSON")
+			fmt.Println("Expected", e.Type, "but received a", e.Value)
+			fmt.Println("I apologize for not being more helpful")
+		} else if e, ok := err.(*json.UnsupportedTypeError); ok {
+			fmt.Println("Invalid JSON")
+			fmt.Println("I am unable to utilize type", e.Type)
+		} else if e, ok := err.(*json.UnsupportedValueError); ok {
+			fmt.Println("Invalid JSON")
+			fmt.Println("I am unable to utilize value", e.Value, e.Str)
+		}
+		return nil, err
 	}
 	return
+
 }
+
+// Reads the configuration file specified in global variable File
+// and sets the admin credentials
+func readConfig() (conf *config.Config, err error) {
+	conf, err = config.LoadMinConfig(File)
+	if err != nil || len(conf.Admin.Password) == 0 {
+		return
+	}
+
+	AdminPassword = conf.Admin.Password
+	AdminBind = conf.Admin.Bind
+
+	return
+}
+
+// Attempt to connect to cjdns 
 func adminConnect() (user *admin.Admin, err error) {
+	// If nothing else has already set this
+	if AdminBind == "" || AdminPassword == "" {
+		// If we still have no idea which configuration file to use
+		if File == "" {
+			// Try getting it from the .cjdnsadmin file
+			cjdAdmin, err := loadCjdnsadmin()
+			if err != nil {
+				err = fmt.Errorf("Unable to load configuration file:", err.Error())
+				return nil, err
+			}
+
+			// Set the admin credentials from the .cjdnsadmin file
+			AdminPassword = cjdAdmin.Password
+			AdminBind = cjdAdmin.Address + ":" + strconv.Itoa(cjdAdmin.Port)
+
+			// If File and OutFile aren't already set, set them
+			// Note that they could still be empty if the "config" 
+			// entry isnt in .cjdnsadmin
+			if File == "" {
+				File = cjdAdmin.Config
+			}
+
+			if OutFile == "" {
+				OutFile = cjdAdmin.Config
+			}
+		} else {
+			// File is set so use it
+			_, err = readConfig()
+			if err != nil {
+				err = fmt.Errorf("Unable to load configuration file:", err.Error())
+				return nil, err
+			}
+		}
+	}
 	user, err = admin.Connect(AdminBind, AdminPassword)
 	if err != nil {
 		if e, ok := err.(net.Error); ok {
@@ -68,12 +162,14 @@ func adminConnect() (user *admin.Admin, err error) {
 	}
 	return
 }
-func connect() (user *admin.Admin, err error) {
-	_, err = readConfig()
+
+// Attempt to read the .cjdnsadmin file from the users home directory
+func loadCjdnsadmin() (cjdnsAdmin *CjdnsAdmin, err error) {
+	tUser, err := user.Current()
 	if err != nil {
 		return
 	}
-	user, err = adminConnect()
+	cjdnsAdmin, err = readCjdnsadmin(tUser.HomeDir + "/.cjdnsadmin")
 	if err != nil {
 		return
 	}
@@ -81,6 +177,8 @@ func connect() (user *admin.Admin, err error) {
 }
 
 // Fills out an IPv6 address to the full 32 bytes
+// This shouldn't be needed in newer versions of cjdns
+
 func padIPv6(ip net.IP) string {
 	raw := hex.EncodeToString(ip)
 	parts := make([]string, len(raw)/4)
@@ -210,32 +308,29 @@ func setTarget(data []string, usePath bool) (target Target, err error) {
 }
 
 func usage() {
-	println("cjdcmd version ", Version)
-	println("")
-	println("cjdcmd expects your cjdroute.conf to be at /etc/cjdroute.conf however you may specify")
-	println("where to look with the -f or -file flags. It is recommended to make a symlink to your config")
-	println("and place it at /etc/cjdroute to save on typing")
-	println("")
-	println("Usage: cjdcmd command [arguments]")
-	println("")
-	println("The commands are:")
-	println("")
-	println("ping <ipv6 address, hostname, or routing path>       sends a cjdns ping to the specified node")
-	println("route <ipv6 address, hostname, or routing path>      prints out all routes to an IP or the IP to a route")
-	println("traceroute <ipv6 address, hostname, or routing path> [-t timeout] performs a traceroute by pinging each known hop to the target on all known paths")
-	println("ip <cjdns public key>                                converts a cjdns public key to the corresponding IPv6 address")
-	println("host <ipv6 address or hostname>                      returns a list of all know IP address for the specified hostname or the hostname for an address")
-	println("addpeer [-file] [-outfile] '<json peer details>'     adds the peer details to your config file")
-	println("addpass [-file] [-outfile] [password]                adds the password to the config if one was supplied, or generates one and then adds")
-	println("cleanconfig [-file] [-outfile]                       strips all comments from the config file and then saves it nicely formatted")
-	println("log [-l level] [-logfile file] [-line line]          prints cjdns log to stdout")
-	println("passgen                                              generates a random alphanumeric password between 15 and 50 characters in length")
-	println("peers                                                displays a list of currently connected peers")
-	println("dump                                                 dumps the routing table to stdout")
-	println("kill                                                 tells cjdns to gracefully exit")
-	println("memory                                               returns the number of bytes of memory the router has allocated")
-	println("")
-	println("Please use `cjdcmd --help` for a list of flags.")
+	fmt.Println("cjdcmd version ", Version)
+	fmt.Println("")
+	fmt.Println("Usage: cjdcmd command [arguments]")
+	fmt.Println("")
+	fmt.Println("The commands are:")
+	fmt.Println("")
+	fmt.Println("ping <ipv6 address, hostname, or routing path>       sends a cjdns ping to the specified node")
+	fmt.Println("route <ipv6 address, hostname, or routing path>      prints out all routes to an IP or the IP to a route")
+	fmt.Println("traceroute <ipv6 address, hostname, or routing path> [-t timeout] performs a traceroute by pinging each known hop to the target on all known paths")
+	fmt.Println("ip <cjdns public key>                                converts a cjdns public key to the corresponding IPv6 address")
+	fmt.Println("host <ipv6 address or hostname>                      returns a list of all know IP address for the specified hostname or the hostname for an address")
+	fmt.Println("cjdnsadmin <-file>                                   creates a .cjdnsadmin file in your home directory using the specified cjdroute.conf as input")
+	fmt.Println("addpeer [-file] [-outfile] '<json peer details>'     adds the peer details to your config file")
+	fmt.Println("addpass [-file] [-outfile] [password]                adds the password to the config if one was supplied, or generates one and then adds")
+	fmt.Println("cleanconfig [-file] [-outfile]                       strips all comments from the config file and then saves it nicely formatted")
+	fmt.Println("log [-l level] [-logfile file] [-line line]          prints cjdns log to stdout")
+	fmt.Println("passgen                                              generates a random alphanumeric password between 15 and 50 characters in length")
+	fmt.Println("peers                                                displays a list of currently connected peers")
+	fmt.Println("dump                                                 dumps the routing table to stdout")
+	fmt.Println("kill                                                 tells cjdns to gracefully exit")
+	fmt.Println("memory                                               returns the number of bytes of memory the router has allocated")
+	fmt.Println("")
+	fmt.Println("Use `cjdcmd --help` for a list of flags.")
 }
 
 // Returns a random alphanumeric string where length is <= max >= min

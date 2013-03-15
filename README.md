@@ -1,14 +1,21 @@
 cjdcmd
 ======
 
-cjdcmd is a command line tool for interfacing with [cjdns](https://github.com/cjdelisle/cjdns), a mesh network routing engine designed for security, scalability, speed, and ease of use. Its intent is to allow easy debugging of node and network problems as well as make it easier to work with the cjdns program itself.
+Cjdcmd is a command line tool for interfacing with [cjdns](https://github.com/cjdelisle/cjdns), a mesh network routing engine designed for security, scalability, speed, and ease of use. Its intent is to allow easy debugging of node and network problems as well as make it easier to work with the cjdns program itself.
+
+Cjdcmd is licensed under the GPL version 3 license, the full text of which is
+available in `GPLv3.md`.
 
 What's New
 ----------
 
-I will (try) to keep this updated with important changes...
+#### Version 0.5.1:
 
-#### Version 0.5:
+* Added support for .cjdnsadmin file. This file contains details on how to connect to a running cjdns instance, as well as your preferred default configuration file. 
+* `cjdnsadmin` will generate a .cjdnsadmin file based on the cjdroute.conf file given to it in the --file flag. If no file is given, it will try using the one specified in a preexisting ~/.cjdnsadmin
+
+#### Version 0.5: 
+
 * Updated to work with the latest version of cjdns that uses UDP to communicate via the admin port.
 * `memory` returns the number of bytes of memory allocated by the router.
 
@@ -95,6 +102,7 @@ Once you have cjdcmd installed you can run it without any arguments to get a lis
 	traceroute <ipv6 address, hostname, or routing path> [-t timeout] performs a traceroute by pinging each known hop to the target on all known paths
 	ip <cjdns public key>                                converts a cjdns public key to the corresponding IPv6 address
 	host <ipv6 address or hostname>                      returns a list of all know IP address for the specified hostname or the hostname for an address
+	cjdnsadmin <-file>                                   creates a .cjdnsadmin file in your home directory using the specified cjdroute.conf as input
 	addpeer [-file] [-outfile] '<json peer details>'     adds the peer details to your config file
 	addpass [-file] [-outfile] [password]                adds the password to the config if one was supplied, or generates one and then adds
 	cleanconfig [-file] [-outfile]                       strips all comments from the config file and then saves it nicely formatted
@@ -211,6 +219,9 @@ Host will lookup the cjdns IPv6 address for the given hostname, or will return t
 	$ cjdcmd host fc5d:baa5:61fc:6ffd:9554:67f0:e290:7535
 	nodeinfo.hype
 	
+### Cjdnsadmin
+
+This command will generate a .cjdnsadmin file based on the cjdroute.conf file given to it in the --file flag. If no file is given, it will try using the one specified in ~/.cjdnsadmin. The file contains details on how to connect to a running cjdns instance, as well as your preferred default configuration file. It will be saved as ".cjdnsadmin" in your home directory.
 
 ### Addpeer
 
