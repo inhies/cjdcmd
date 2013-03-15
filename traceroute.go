@@ -105,10 +105,10 @@ func doTraceroute(user *admin.Admin, target Target) {
 					fmt.Printf(" %vms", tRoute.TTime)
 				}
 			}
-			println("")
+			fmt.Println("")
 		}
 	}
-	println("Found", count, "routes")
+	fmt.Println("Found", count, "routes")
 }
 
 func getHops(table []*Route, fullPath uint64) (output []*Route, err error) {

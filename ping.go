@@ -48,8 +48,8 @@ func pingNode(user *admin.Admin, ping *Ping) (err error) {
 			}
 			if ping.Version != response.Version {
 				//not likely we'll see this happen but it doesnt hurt to be prepared
-				println("Host is sending back mismatched versions")
-				println("Old:", ping.Version, "New:", response.Version)
+				fmt.Println("Host is sending back mismatched versions")
+				fmt.Println("Old:", ping.Version, "New:", response.Version)
 			}
 		}
 	} else {

@@ -53,7 +53,7 @@ func addPassword(data []string) {
 
 	if _, ok := conf["authorizedPasswords"]; !ok {
 		conf["authorizedPasswords"] = make([]interface{}, 0)
-		println("Your configuration file does not contain an 'authorizedPasswords' section, so one was created for you")
+		fmt.Println("Your configuration file does not contain an 'authorizedPasswords' section, so one was created for you")
 	}
 	passwords := conf["authorizedPasswords"].([]interface{})
 
@@ -81,10 +81,10 @@ func addPassword(data []string) {
 
 	is := conf["interfaces"].(map[string]interface{})
 	if len(is) == 0 {
-		println("No valid interfaces found!")
+		fmt.Println("No valid interfaces found!")
 		return
 	} else if len(is) > 1 {
-		println("You have multiple interfaces to choose from, enter yes or no, or press enter for the default option:")
+		fmt.Println("You have multiple interfaces to choose from, enter yes or no, or press enter for the default option:")
 	}
 
 	var useIface string
@@ -106,7 +106,7 @@ selectIF:
 			}
 		}
 		if useIface == "" {
-			println("You must select an interface to add to!")
+			fmt.Println("You must select an interface to add to!")
 			continue
 		}
 
@@ -125,7 +125,7 @@ selectIF:
 			}
 		}
 		if iX == nil {
-			println("You must select an interface to add to!")
+			fmt.Println("You must select an interface to add to!")
 			goto selectIF2
 		}
 	} else if len(i) == 1 {
@@ -156,7 +156,7 @@ selectIF:
 		continue
 	}
 
-	println("Password information:")
+	fmt.Println("Password information:")
 
 	for f, v := range pass {
 		fmt.Printf("\t\"%v\":\"%v\"\n", f, v)
@@ -165,9 +165,9 @@ selectIF:
 	fmt.Printf("Add this password? [Y/n]: ")
 	if gotYes(true) {
 		conf["authorizedPasswords"] = append(passwords, pass)
-		println("Password added")
+		fmt.Println("Password added")
 	} else {
-		println("Cancelled adding password")
+		fmt.Println("Cancelled adding password")
 		return
 	}
 
@@ -209,7 +209,7 @@ selectIF:
 	} else {
 		bind = iX["bind"].(string)
 	}
-	println("Here are the details to be shared with your new peer:")
+	fmt.Println("Here are the details to be shared with your new peer:")
 	fmt.Printf("\"%v\":{\n", bind)
 	fmt.Printf("\t\"password\":\"%v\",\n", pass["password"].(string))
 	fmt.Printf("\t\"publicKey\":\"%v\"\n", conf["publicKey"].(string))
@@ -218,7 +218,7 @@ selectIF:
 }
 func addPeer(data []string) {
 	if len(data) == 0 {
-		println("You must enter the peering details surrounded by single qoutes '<peer details>'")
+		fmt.Println("You must enter the peering details surrounded by single qoutes '<peer details>'")
 		return
 	}
 	input := data[0]
@@ -260,16 +260,16 @@ func addPeer(data []string) {
 	fmt.Printf("Loaded\n")
 
 	if _, ok := conf["interfaces"]; !ok {
-		println("Your configuration file does not contain an 'interfaces' section")
+		fmt.Println("Your configuration file does not contain an 'interfaces' section")
 		return
 	}
 
 	is := conf["interfaces"].(map[string]interface{})
 	if len(is) == 0 {
-		println("No valid interfaces found!")
+		fmt.Println("No valid interfaces found!")
 		return
 	} else if len(is) > 1 {
-		println("You have multiple interfaces to choose from, enter yes or no, or press enter for the default option:")
+		fmt.Println("You have multiple interfaces to choose from, enter yes or no, or press enter for the default option:")
 	}
 
 	var useIface string
@@ -291,7 +291,7 @@ selectIF:
 			}
 		}
 		if useIface == "" {
-			println("You must select an interface to add to!")
+			fmt.Println("You must select an interface to add to!")
 			continue
 		}
 		break
@@ -309,7 +309,7 @@ selectIF:
 			}
 		}
 		if iX == nil {
-			println("You must select an interface to add to!")
+			fmt.Println("You must select an interface to add to!")
 			goto selectIF2
 		}
 	} else if len(i) == 1 {
@@ -364,7 +364,7 @@ selectIF:
 			continue
 		}
 
-		println("Peer information:")
+		fmt.Println("Peer information:")
 
 		for f, v := range peer {
 			fmt.Printf("\t\"%v\":\"%v\"\n", f, v)
@@ -373,9 +373,9 @@ selectIF:
 		fmt.Printf("Add this peer? [Y/n]: ")
 		if gotYes(true) {
 			peers[key] = peer
-			println("Peer added")
+			fmt.Println("Peer added")
 		} else {
-			println("Skipped adding peer")
+			fmt.Println("Skipped adding peer")
 		}
 
 	}

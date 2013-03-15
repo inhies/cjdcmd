@@ -234,7 +234,7 @@ func main() {
 		port := conf.Admin.Bind[split+1:]
 		portInt, err := strconv.Atoi(port)
 		if err != nil {
-			println("Error with cjdns admin bind settings")
+			fmt.Println("Error with cjdns admin bind settings")
 			return
 		}
 
@@ -247,14 +247,14 @@ func main() {
 
 		jsonout, err := json.MarshalIndent(adminOut, "", "\t")
 		if err != nil {
-			println("Unable to create JSON for .cjdnsadmin")
+			fmt.Println("Unable to create JSON for .cjdnsadmin")
 			return
 		}
 
 		if OutFile == "" {
 			tUser, err := user.Current()
 			if err != nil {
-				println("I was unable to get your home directory, please manually specify where to save the file with --outfile")
+				fmt.Println("I was unable to get your home directory, please manually specify where to save the file with --outfile")
 				return
 			}
 			OutFile = tUser.HomeDir + "/.cjdnsadmin"
@@ -267,7 +267,7 @@ func main() {
 				return
 			}
 		} else {
-			println("Saving to", OutFile)
+			fmt.Println("Saving to", OutFile)
 		}
 
 		ioutil.WriteFile(OutFile, jsonout, 0600)
@@ -329,7 +329,7 @@ func main() {
 
 	case hostCmd:
 		if len(data) == 0 {
-			println("Invalid hostname or IPv6 address specified")
+			fmt.Println("Invalid hostname or IPv6 address specified")
 			return
 		}
 		input := data[0]
@@ -353,13 +353,13 @@ func main() {
 				fmt.Printf("%v has IPv6 address %v\n", data[0], addr)
 			}
 		} else {
-			println("Invalid hostname or IPv6 address specified")
+			fmt.Println("Invalid hostname or IPv6 address specified")
 			return
 		}
 
 	case passGenCmd:
 		// TODO(inies): Make more good
-		println(randString(15, 50))
+		fmt.Println(randString(15, 50))
 
 	case pubKeyToIPcmd:
 		var ip []byte
@@ -367,11 +367,11 @@ func main() {
 			if len(data[0]) == 52 || len(data[0]) == 54 {
 				ip = []byte(data[0])
 			} else {
-				println("Invalid public key")
+				fmt.Println("Invalid public key")
 				return
 			}
 		} else {
-			println("Invalid public key")
+			fmt.Println("Invalid public key")
 			return
 		}
 		parsed, err := admin.PubKeyToIP(ip)
@@ -495,7 +495,7 @@ func main() {
 					}
 					return
 				}
-				println(ping.Response)
+				fmt.Println(ping.Response)
 				// Send 1 ping per second
 				now := time.Duration(time.Now().UTC().UnixNano())
 				time.Sleep(start + (time.Duration(PingInterval) * time.Second) - now)
@@ -513,7 +513,7 @@ func main() {
 					}
 					return
 				}
-				println(ping.Response)
+				fmt.Println(ping.Response)
 				// Send 1 ping per second
 				now := time.Duration(time.Now().UTC().UnixNano())
 				time.Sleep(start + (time.Duration(PingInterval) * time.Second) - now)
@@ -622,7 +622,7 @@ func main() {
 			fmt.Printf("IP: %v -- Path: %s -- Link: %.0f\n", tText, p.Path, p.Link)
 			count++
 		}
-		//println("Connected to", count, "peers")
+		//fmt.Println("Connected to", count, "peers")
 	case versionCmd:
 		// TODO(inhies): Ping a specific node and return it's cjdns version, or
 		// ping all nodes in the routing table and get their versions
@@ -644,7 +644,7 @@ func main() {
 		for ; alive; alive, _ = admin.SendPing(globalData.User, 1000) {
 			runtime.Gosched() //play nice
 		}
-		println("cjdns is shutting down...")
+		fmt.Println("cjdns is shutting down...")
 
 	case dumpCmd:
 		user, err := adminConnect()
