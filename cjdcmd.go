@@ -60,6 +60,7 @@ const (
 	pubKeyToIPcmd = "ip"
 	passGenCmd    = "passgen"
 	hostCmd       = "host"
+	hostNameCmd   = "hostname"
 	cleanCfgCmd   = "cleanconfig"
 	addPeerCmd    = "addpeer"
 	addPassCmd    = "addpass"
@@ -338,6 +339,19 @@ func main() {
 
 	case addPeerCmd:
 		addPeer(data)
+
+	case hostNameCmd:
+		if len(data) == 1 {
+			setHypeDNS(data[0])
+			return
+		}
+		if len(data) > 1 {
+			fmt.Println("Too many arguments.")
+			return
+		}
+		fmt.Println("Didn't provide a new hostname")
+		fmt.Println("Haven't implemented the feature to get hostnames yet.")
+		return
 
 	case hostCmd:
 		if len(data) == 0 {

@@ -332,6 +332,7 @@ func usage() {
 	fmt.Println("traceroute <ipv6 address, hostname, or routing path> [-t timeout] performs a traceroute by pinging each known hop to the target on all known paths")
 	fmt.Println("ip <cjdns public key>                                converts a cjdns public key to the corresponding IPv6 address")
 	fmt.Println("host <ipv6 address or hostname>                      returns a list of all know IP address for the specified hostname or the hostname for an address")
+	fmt.Println("hostname [new HypeDNS hostname]                      without arguments, it will return your hostname on HypeDNS. Pass a hostname and it will make that your HypeDNS hostname.")
 	fmt.Println("cjdnsadmin <-file>                                   creates a .cjdnsadmin file in your home directory using the specified cjdroute.conf as input")
 	fmt.Println("addpeer [-file] [-outfile] '<json peer details>'     adds the peer details to your config file")
 	fmt.Println("addpass [-file] [-outfile] [password]                adds the password to the config if one was supplied, or generates one and then adds")
