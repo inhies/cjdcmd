@@ -341,6 +341,10 @@ func main() {
 		addPeer(data)
 
 	case hostNameCmd:
+		if len(data) == 0 {
+			setHypeDNS("")
+			return
+		}
 		if len(data) == 1 {
 			setHypeDNS(data[0])
 			return
@@ -349,8 +353,6 @@ func main() {
 			fmt.Println("Too many arguments.")
 			return
 		}
-		fmt.Println("Didn't provide a new hostname")
-		fmt.Println("Haven't implemented the feature to get hostnames yet.")
 		return
 
 	case hostCmd:
