@@ -386,7 +386,7 @@ func main() {
 		}
 
 	case passGenCmd:
-		if len(data[0]) > 0 {
+		if len(data) > 0 && len(data[0]) > 0 {
 			fmt.Println(data[0] + "_" + randString(25, 50))
 		} else {
 			fmt.Println(randString(25, 50))
