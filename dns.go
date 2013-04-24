@@ -16,7 +16,9 @@ package main
 import (
 	"fmt"
 	"github.com/miekg/dns"
+	"io/ioutil"
 	"net"
+	"net/http"
 	"strings"
 )
 
@@ -65,6 +67,41 @@ func reverseHypeDNSLookup(ip string) (response string, err error) {
 		return columns[4], nil
 	}
 	return
+}
+
+// Create a HypeDNS name for this device
+func setHypeDNS(hostname string) (response string, err error) {
+	setLoc := "/_hypehost/set?hostname="
+	getLoc := "/_hypehost/get"
+	nodeInfoHost :=  "http://[fc5d:baa5:61fc:6ffd:9554:67f0:e290:7535]:8000"
+
+	if len(hostname) == 0 {
+		// The request is a "get"
+		resp, err := http.Get(nodeInfoHost + getLoc)
+		if err != nil {
+			fmt.Println("Got an error, %s", err)
+			err = fmt.Errorf("Got an error when attempting to retrieve " +
+			"hostname. This is usually because you can't connect to HypeDNS. " +
+			"Try again later")
+			return "", err
+		}
+		defer resp.Body.Close()
+		body, err := ioutil.ReadAll(resp.Body)
+		fmt.Println("You are: " + string(body))
+		return "", nil
+	}
+	// The request is a "set"
+	resp, err := http.Get(nodeInfoHost + setLoc + hostname)
+	if err != nil {
+		fmt.Println("Got an error, %s", err)
+		err = fmt.Errorf("Got an error when attempting to change hostname. " +
+		"Try again later")
+		return "", err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	fmt.Println("Hostname " + string(body) + " created.")
+	return "", nil
 }
 
 // Resolve an IP to a domain name using the system DNS settings first, then HypeDNS
