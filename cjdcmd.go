@@ -599,58 +599,18 @@ func main() {
 			return
 		}
 		globalData.User = user
-		peers := make([]*Route, 0)
-		table := getTable(globalData.User)
-		sort.Sort(ByQuality{table})
-		//fmt.Println("Finding all connected peers")
+		peers := GetPeers(getTable(globalData.User))
 
-		for i := range table {
-
-			if table[i].Link < 1 {
-				continue
-			}
-			if table[i].RawPath == 1 {
-				continue
-			}
-			response, err := getHops(table, table[i].RawPath)
-			if err != nil {
-				fmt.Println(err)
-			}
-
-			sort.Sort(ByPath{response})
-
-			var peer *Route
-			if len(response) > 1 {
-				peer = response[1]
-			} else {
-				peer = response[0]
-			}
-
-			found := false
-			for _, p := range peers {
-				if p == peer {
-					found = true
-					break
-				}
-			}
-
-			if !found {
-				peers = append(peers, peer)
-			}
-		}
 		count := 0
+		ctl := make(chan int)
 		for _, p := range peers {
-			var tText string
-			hostname, _ := resolveIP(p.IP)
-			if hostname != "" {
-				tText = p.IP + " (" + hostname + ")"
-			} else {
-				tText = p.IP
-			}
-			fmt.Printf("IP: %v -- Path: %s -- Link: %.0f\n", tText, p.Path, p.Link)
+			go PrintPeer(p, ctl)
 			count++
 		}
-		//fmt.Println("Connected to", count, "peers")
+		for i := 0; i < count; i++ {
+			<-ctl
+		}
+
 	case versionCmd:
 		// TODO(inhies): Ping a specific node and return it's cjdns version, or
 		// ping all nodes in the routing table and get their versions
