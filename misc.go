@@ -338,7 +338,7 @@ func usage() {
 	fmt.Println("addpass [-file] [-outfile] [password]                adds the password to the config if one was supplied, or generates one and then adds")
 	fmt.Println("cleanconfig [-file] [-outfile]                       strips all comments from the config file and then saves it nicely formatted")
 	fmt.Println("log [-l level] [-logfile file] [-line line]          prints cjdns log to stdout")
-	fmt.Println("passgen                                              generates a random alphanumeric password between 15 and 50 characters in length")
+	fmt.Println("passgen [prefix]                                     generates a random alphanumeric password between 15 and 50 characters. If you provide [prefix], it will be prepended. This is to help you keep track of your peering passwords")
 	fmt.Println("peers                                                displays a list of currently connected peers")
 	fmt.Println("dump                                                 dumps the routing table to stdout")
 	fmt.Println("kill                                                 tells cjdns to gracefully exit")
