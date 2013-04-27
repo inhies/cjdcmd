@@ -295,15 +295,18 @@ func GetPeers(table []*Route) (peers []*Route) {
 	return peers
 }
 
-func LookUpPeer(pr *Route, ctl chan []string) {
-	var tText string
+func LookUpPeer(pr *Route, ctl chan Record) {
+	var name string
 	hostname, _ := resolveIP(pr.IP)
 	if hostname != "" {
-		tText = pr.IP + " (" + hostname + ")"
+		name = pr.IP + " (" + hostname + ")"
 	} else {
-		tText = pr.IP
+		name = pr.IP
 	}
-	ctl <- []string{pr.IP, tText}
+	ctl <- Record{
+		IP:   pr.IP,
+		Name: name,
+	}
 }
 
 type Target struct {

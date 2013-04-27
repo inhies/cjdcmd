@@ -95,6 +95,11 @@ type Route struct {
 	Version int64
 }
 
+type Record struct {
+	IP   string
+	Name string
+}
+
 type Data struct {
 	User            *admin.Admin
 	LoggingStreamID string
@@ -625,20 +630,20 @@ func main() {
 			peer_map[p.IP] = p
 		}
 
-		good_peers := make(chan []string)
+		good_peers := make(chan Record)
 		count := 0
 		for _, p := range conf_peers {
 			if peer, ok := peer_map[p]; ok {
 				count++
 				go LookUpPeer(peer, good_peers)
 			} else {
-				fmt.Println("BAD: " + p + " is not connected.")
+				fmt.Println("BAD:  " + p + " is not connected.")
 			}
 		}
 
 		for i := 0; i < count; i++ {
-			val := <-good_peers
-			fmt.Printf("GOOD: %v -- Path: %s -- Link: %.0f\n", val[1], peer_map[val[0]].Path, peer_map[val[0]].Link)
+			r := <-good_peers
+			fmt.Printf("GOOD: %v -- Path: %s -- Link: %.0f\n", r.Name, peer_map[r.IP].Path, peer_map[r.IP].Link)
 		}
 
 	case peerCmd:
@@ -652,7 +657,7 @@ func main() {
 
 		count := 0
 		peer_map := make(map[string]*Route)
-		ctl := make(chan []string)
+		ctl := make(chan Record)
 		for _, p := range peers {
 			go LookUpPeer(p, ctl)
 			peer_map[p.IP] = p
@@ -660,8 +665,8 @@ func main() {
 		}
 
 		for i := 0; i < count; i++ {
-			val := <-ctl
-			fmt.Printf("IP: %v -- Path: %s -- Link: %.0f\n", val[1], peer_map[val[0]].Path, peer_map[val[0]].Link)
+			r := <-ctl
+			fmt.Printf("IP: %v -- Path: %s -- Link: %.0f\n", r.Name, peer_map[r.IP].Path, peer_map[r.IP].Link)
 		}
 
 	case versionCmd:
