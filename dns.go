@@ -73,7 +73,7 @@ func reverseHypeDNSLookup(ip string) (response string, err error) {
 func setHypeDNS(hostname string) (response string, err error) {
 	setLoc := "/_hypehost/set?hostname="
 	getLoc := "/_hypehost/get"
-	nodeInfoHost :=  "http://[fc5d:baa5:61fc:6ffd:9554:67f0:e290:7535]:8000"
+	nodeInfoHost := "http://[fc5d:baa5:61fc:6ffd:9554:67f0:e290:7535]:8000"
 
 	if len(hostname) == 0 {
 		// The request is a "get"
@@ -81,8 +81,8 @@ func setHypeDNS(hostname string) (response string, err error) {
 		if err != nil {
 			fmt.Println("Got an error, %s", err)
 			err = fmt.Errorf("Got an error when attempting to retrieve " +
-			"hostname. This is usually because you can't connect to HypeDNS. " +
-			"Try again later")
+				"hostname. This is usually because you can't connect to HypeDNS. " +
+				"Try again later")
 			return "", err
 		}
 		defer resp.Body.Close()
@@ -95,7 +95,7 @@ func setHypeDNS(hostname string) (response string, err error) {
 	if err != nil {
 		fmt.Println("Got an error, %s", err)
 		err = fmt.Errorf("Got an error when attempting to change hostname. " +
-		"Try again later")
+			"Try again later")
 		return "", err
 	}
 	defer resp.Body.Close()

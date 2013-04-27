@@ -25,6 +25,7 @@ import (
 	"net"
 	"os/user"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -254,6 +255,58 @@ func getTable(user *admin.Admin) (table []*Route) {
 	}
 
 	return
+}
+
+func GetPeers(table []*Route) (peers []*Route) {
+	for i := range table {
+
+		if table[i].Link < 1 {
+			continue
+		}
+		if table[i].RawPath == 1 {
+			continue
+		}
+		response, err := getHops(table, table[i].RawPath)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		sort.Sort(ByPath{response})
+
+		var peer *Route
+		if len(response) > 1 {
+			peer = response[1]
+		} else {
+			peer = response[0]
+		}
+
+		found := false
+		for _, p := range peers {
+			if p == peer {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			peers = append(peers, peer)
+		}
+	}
+	return peers
+}
+
+func LookUpPeer(pr *Route, ctl chan Record) {
+	var name string
+	hostname, _ := resolveIP(pr.IP)
+	if hostname != "" {
+		name = pr.IP + " (" + hostname + ")"
+	} else {
+		name = pr.IP
+	}
+	ctl <- Record{
+		IP:   pr.IP,
+		Name: name,
+	}
 }
 
 type Target struct {
