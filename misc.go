@@ -295,7 +295,7 @@ func GetPeers(table []*Route) (peers []*Route) {
 	return peers
 }
 
-func PrintPeer(pr *Route, ctl chan int) {
+func LookUpPeer(pr *Route, ctl chan []string) {
 	var tText string
 	hostname, _ := resolveIP(pr.IP)
 	if hostname != "" {
@@ -303,8 +303,7 @@ func PrintPeer(pr *Route, ctl chan int) {
 	} else {
 		tText = pr.IP
 	}
-	fmt.Printf("IP: %v -- Path: %s -- Link: %.0f\n", tText, pr.Path, pr.Link)
-	ctl <- 1
+	ctl <- []string{pr.IP, tText}
 }
 
 type Target struct {

@@ -53,6 +53,7 @@ const (
 	logCmd        = "log"
 	traceCmd      = "traceroute"
 	peerCmd       = "peers"
+	peerStatCmd   = "peerstat"
 	dumpCmd       = "dump"
 	routeCmd      = "route"
 	killCmd       = "kill"
@@ -592,6 +593,54 @@ func main() {
 			counter++
 		}
 
+	case peerStatCmd:
+		user, err := adminConnect()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		globalData.User = user
+
+		conf, err := readConfig()
+		if err != nil {
+			fmt.Println("Error loading config:", err)
+			return
+		}
+
+		conf_peers := make([]string, 0)
+		for _, inter := range conf.Interfaces.UDPInterface {
+			for _, conn := range inter.ConnectTo {
+				ip, err := admin.PubKeyToIP([]byte(conn.PublicKey))
+				if err != nil {
+					fmt.Printf("Could not convert pubkey %s to IP\n", conn.PublicKey)
+					fmt.Println(err)
+					return
+				}
+				conf_peers = append(conf_peers, ip)
+			}
+		}
+
+		peer_map := make(map[string]*Route)
+		for _, p := range GetPeers(getTable(globalData.User)) {
+			peer_map[p.IP] = p
+		}
+
+		good_peers := make(chan []string)
+		count := 0
+		for _, p := range conf_peers {
+			if peer, ok := peer_map[p]; ok {
+				count++
+				go LookUpPeer(peer, good_peers)
+			} else {
+				fmt.Println("BAD: " + p + " is not connected.")
+			}
+		}
+
+		for i := 0; i < count; i++ {
+			val := <-good_peers
+			fmt.Printf("GOOD: %v -- Path: %s -- Link: %.0f\n", val[1], peer_map[val[0]].Path, peer_map[val[0]].Link)
+		}
+
 	case peerCmd:
 		user, err := adminConnect()
 		if err != nil {
@@ -602,13 +651,17 @@ func main() {
 		peers := GetPeers(getTable(globalData.User))
 
 		count := 0
-		ctl := make(chan int)
+		peer_map := make(map[string]*Route)
+		ctl := make(chan []string)
 		for _, p := range peers {
-			go PrintPeer(p, ctl)
+			go LookUpPeer(p, ctl)
+			peer_map[p.IP] = p
 			count++
 		}
+
 		for i := 0; i < count; i++ {
-			<-ctl
+			val := <-ctl
+			fmt.Printf("IP: %v -- Path: %s -- Link: %.0f\n", val[1], peer_map[val[0]].Path, peer_map[val[0]].Link)
 		}
 
 	case versionCmd:
