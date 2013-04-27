@@ -393,6 +393,7 @@ func usage() {
 	fmt.Println("log [-l level] [-logfile file] [-line line]          prints cjdns log to stdout")
 	fmt.Println("passgen                                              generates a random alphanumeric password between 15 and 50 characters in length")
 	fmt.Println("peers                                                displays a list of currently connected peers")
+	fmt.Println("peerstat                                             displays status of peers, including peers that are in your config but you are not connected to")
 	fmt.Println("dump                                                 dumps the routing table to stdout")
 	fmt.Println("kill                                                 tells cjdns to gracefully exit")
 	fmt.Println("memory                                               returns the number of bytes of memory the router has allocated")
