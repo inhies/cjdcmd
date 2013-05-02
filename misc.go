@@ -25,6 +25,7 @@ import (
 	"net"
 	"os/user"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -256,6 +257,58 @@ func getTable(user *admin.Admin) (table []*Route) {
 	return
 }
 
+func GetPeers(table []*Route) (peers []*Route) {
+	for i := range table {
+
+		if table[i].Link < 1 {
+			continue
+		}
+		if table[i].RawPath == 1 {
+			continue
+		}
+		response, err := getHops(table, table[i].RawPath)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		sort.Sort(ByPath{response})
+
+		var peer *Route
+		if len(response) > 1 {
+			peer = response[1]
+		} else {
+			peer = response[0]
+		}
+
+		found := false
+		for _, p := range peers {
+			if p == peer {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			peers = append(peers, peer)
+		}
+	}
+	return peers
+}
+
+func LookUpPeer(pr *Route, ctl chan Record) {
+	var name string
+	hostname, _ := resolveIP(pr.IP)
+	if hostname != "" {
+		name = pr.IP + " (" + hostname + ")"
+	} else {
+		name = pr.IP
+	}
+	ctl <- Record{
+		IP:   pr.IP,
+		Name: name,
+	}
+}
+
 type Target struct {
 	Target   string
 	Supplied string
@@ -340,6 +393,7 @@ func usage() {
 	fmt.Println("log [-l level] [-logfile file] [-line line]          prints cjdns log to stdout")
 	fmt.Println("passgen                                              generates a random alphanumeric password between 15 and 50 characters in length")
 	fmt.Println("peers                                                displays a list of currently connected peers")
+	fmt.Println("peerstat                                             displays status of peers, including peers that are in your config but you are not connected to")
 	fmt.Println("dump                                                 dumps the routing table to stdout")
 	fmt.Println("kill                                                 tells cjdns to gracefully exit")
 	fmt.Println("memory                                               returns the number of bytes of memory the router has allocated")

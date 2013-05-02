@@ -53,6 +53,7 @@ const (
 	logCmd        = "log"
 	traceCmd      = "traceroute"
 	peerCmd       = "peers"
+	peerStatCmd   = "peerstat"
 	dumpCmd       = "dump"
 	routeCmd      = "route"
 	killCmd       = "kill"
@@ -92,6 +93,11 @@ type Route struct {
 	Link    float64
 	RawLink int64
 	Version int64
+}
+
+type Record struct {
+	IP   string
+	Name string
 }
 
 type Data struct {
@@ -592,6 +598,66 @@ func main() {
 			counter++
 		}
 
+	case peerStatCmd:
+		user, err := adminConnect()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		globalData.User = user
+
+		conf, err := readConfig()
+		if err != nil {
+			fmt.Println("Error loading config:", err)
+			return
+		}
+
+		conf_peers := make([]string, 0)
+		for _, inter := range conf.Interfaces.UDPInterface {
+			for _, conn := range inter.ConnectTo {
+				ip, err := admin.PubKeyToIP([]byte(conn.PublicKey))
+				if err != nil {
+					fmt.Printf("Could not convert pubkey %s to IP\n", conn.PublicKey)
+					fmt.Println(err)
+					return
+				}
+				conf_peers = append(conf_peers, ip)
+			}
+		}
+
+		for _, inter := range conf.Interfaces.ETHInterface {
+			for _, conn := range inter.ConnectTo {
+				ip, err := admin.PubKeyToIP([]byte(conn.PublicKey))
+				if err != nil {
+					fmt.Printf("Could not convert pubkey %s to IP\n", conn.PublicKey)
+					fmt.Println(err)
+					return
+				}
+				conf_peers = append(conf_peers, ip)
+			}
+		}
+
+		peer_map := make(map[string]*Route)
+		for _, p := range GetPeers(getTable(globalData.User)) {
+			peer_map[p.IP] = p
+		}
+
+		good_peers := make(chan Record)
+		count := 0
+		for _, p := range conf_peers {
+			if peer, ok := peer_map[p]; ok {
+				count++
+				go LookUpPeer(peer, good_peers)
+			} else {
+				fmt.Println("BAD:  " + p + " is not connected.")
+			}
+		}
+
+		for i := 0; i < count; i++ {
+			r := <-good_peers
+			fmt.Printf("GOOD: %v -- Path: %s -- Link: %.0f\n", r.Name, peer_map[r.IP].Path, peer_map[r.IP].Link)
+		}
+
 	case peerCmd:
 		user, err := adminConnect()
 		if err != nil {
@@ -599,58 +665,22 @@ func main() {
 			return
 		}
 		globalData.User = user
-		peers := make([]*Route, 0)
-		table := getTable(globalData.User)
-		sort.Sort(ByQuality{table})
-		//fmt.Println("Finding all connected peers")
+		peers := GetPeers(getTable(globalData.User))
 
-		for i := range table {
-
-			if table[i].Link < 1 {
-				continue
-			}
-			if table[i].RawPath == 1 {
-				continue
-			}
-			response, err := getHops(table, table[i].RawPath)
-			if err != nil {
-				fmt.Println(err)
-			}
-
-			sort.Sort(ByPath{response})
-
-			var peer *Route
-			if len(response) > 1 {
-				peer = response[1]
-			} else {
-				peer = response[0]
-			}
-
-			found := false
-			for _, p := range peers {
-				if p == peer {
-					found = true
-					break
-				}
-			}
-
-			if !found {
-				peers = append(peers, peer)
-			}
-		}
 		count := 0
+		peer_map := make(map[string]*Route)
+		ctl := make(chan Record)
 		for _, p := range peers {
-			var tText string
-			hostname, _ := resolveIP(p.IP)
-			if hostname != "" {
-				tText = p.IP + " (" + hostname + ")"
-			} else {
-				tText = p.IP
-			}
-			fmt.Printf("IP: %v -- Path: %s -- Link: %.0f\n", tText, p.Path, p.Link)
+			go LookUpPeer(p, ctl)
+			peer_map[p.IP] = p
 			count++
 		}
-		//fmt.Println("Connected to", count, "peers")
+
+		for i := 0; i < count; i++ {
+			r := <-ctl
+			fmt.Printf("IP: %v -- Path: %s -- Link: %.0f\n", r.Name, peer_map[r.IP].Path, peer_map[r.IP].Link)
+		}
+
 	case versionCmd:
 		// TODO(inhies): Ping a specific node and return it's cjdns version, or
 		// ping all nodes in the routing table and get their versions
