@@ -625,6 +625,18 @@ func main() {
 			}
 		}
 
+		for _, inter := range conf.Interfaces.ETHInterface {
+			for _, conn := range inter.ConnectTo {
+				ip, err := admin.PubKeyToIP([]byte(conn.PublicKey))
+				if err != nil {
+					fmt.Printf("Could not convert pubkey %s to IP\n", conn.PublicKey)
+					fmt.Println(err)
+					return
+				}
+				conf_peers = append(conf_peers, ip)
+			}
+		}
+
 		peer_map := make(map[string]*Route)
 		for _, p := range GetPeers(getTable(globalData.User)) {
 			peer_map[p.IP] = p
