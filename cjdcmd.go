@@ -120,7 +120,7 @@ func init() {
 
 		usagePass = "[all] specify the admin password"
         
-        usageNoDNS = "[peers] Do not perform DNS lookups on peers (greatly improves speed)"
+        usageNoDNS = "[all] Do not perform DNS lookups (greatly improves speed)"
 	)
 
 	fs.StringVar(&File, "file", "", usageFile)
@@ -649,15 +649,11 @@ func main() {
 		count := 0
 		for _, p := range peers {
 			var tText string
-            if NoDNS {
-                tText = p.IP
+            hostname, _ := resolveIP(p.IP)
+            if hostname != "" {
+                tText = p.IP + " (" + hostname + ")"
             } else {
-                hostname, _ := resolveIP(p.IP)
-                if hostname != "" {
-                    tText = p.IP + " (" + hostname + ")"
-                } else {
-                    tText = p.IP
-                }
+                tText = p.IP
             }
 			fmt.Printf("IP: %v -- Path: %s -- Link: %.0f\n", tText, p.Path, p.Link)
 			count++

@@ -107,25 +107,27 @@ func setHypeDNS(hostname string) (response string, err error) {
 // Resolve an IP to a domain name using the system DNS settings first, then HypeDNS
 func resolveIP(ip string) (hostname string, err error) {
 	var try2 string
+    if NoDNS {
+        hostname = ip
+    } else {
+        // try the system DNS setup
+        result, _ := net.LookupAddr(ip)
+        if len(result) > 0 {
+            goto end
+        }
 
-	// try the system DNS setup
-	result, _ := net.LookupAddr(ip)
-	if len(result) > 0 {
-		goto end
-	}
-
-	// Try HypeDNS
-	try2, err = reverseHypeDNSLookup(ip)
-	if try2 == "" || err != nil {
-		err = fmt.Errorf("Unable to resolve IP address. This is usually caused by not having a route to hypedns. Please try again in a few seconds.")
-		return
-	}
-	result = append(result, try2)
-end:
-	for _, addr := range result {
-		hostname = addr
-	}
-
+        // Try HypeDNS
+        try2, err = reverseHypeDNSLookup(ip)
+        if try2 == "" || err != nil {
+            err = fmt.Errorf("Unable to resolve IP address. This is usually caused by not having a route to hypedns. Please try again in a few seconds.")
+            return
+        }
+        result = append(result, try2)
+    end:
+        for _, addr := range result {
+            hostname = addr
+        }
+    }
 	// Trim the trailing period becuase it annoys me
 	if hostname[len(hostname)-1] == '.' {
 		hostname = hostname[:len(hostname)-1]
