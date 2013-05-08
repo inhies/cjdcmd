@@ -48,6 +48,8 @@ const (
 
 	defaultPass      = ""
 	defaultAdminBind = ""
+    
+    defaultNoDNS     = false
 
 	pingCmd       = "ping"
 	logCmd        = "log"
@@ -83,6 +85,8 @@ var (
 
 	AdminPassword string
 	AdminBind     string
+    
+    NoDNS         bool
 )
 
 type Route struct {
@@ -115,6 +119,8 @@ func init() {
 		usageOutFile = "[all] the cjdroute.conf configuration file to save to"
 
 		usagePass = "[all] specify the admin password"
+        
+        usageNoDNS = "[peers] Do not perform DNS lookups on peers (greatly improves speed)"
 	)
 
 	fs.StringVar(&File, "file", "", usageFile)
@@ -137,6 +143,8 @@ func init() {
 
 	fs.StringVar(&LogFile, "logfile", defaultLogFile, usageLogFile)
 	fs.IntVar(&LogFileLine, "line", defaultLogFileLine, usageLogFileLine)
+    
+    fs.BoolVar(&NoDNS, "nodns", defaultNoDNS, usageNoDNS)
 
 	// Seed the PRG
 	rand.Seed(time.Now().UTC().UnixNano())
@@ -641,12 +649,16 @@ func main() {
 		count := 0
 		for _, p := range peers {
 			var tText string
-			hostname, _ := resolveIP(p.IP)
-			if hostname != "" {
-				tText = p.IP + " (" + hostname + ")"
-			} else {
-				tText = p.IP
-			}
+            if NoDNS {
+                tText = p.IP
+            } else {
+                hostname, _ := resolveIP(p.IP)
+                if hostname != "" {
+                    tText = p.IP + " (" + hostname + ")"
+                } else {
+                    tText = p.IP
+                }
+            }
 			fmt.Printf("IP: %v -- Path: %s -- Link: %.0f\n", tText, p.Path, p.Link)
 			count++
 		}
