@@ -144,8 +144,8 @@ func adminConnect() (user *admin.Admin, err error) {
 			}
 			File = cjdnsAdmin.Config
 			if File == "" {
-				fmt.Println("Please specify the configuration file in your .cjdnsadmin file or pass the --file flag.")
-				return
+				return nil, fmt.Errorf("Please specify the configuration file in your .cjdnsadmin file or pass the --file flag.")
+
 			}
 
 			// Set the admin credentials from the .cjdnsadmin file
