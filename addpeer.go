@@ -12,7 +12,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
- package main
+package main
 
 import (
 	"bufio"
@@ -27,12 +27,22 @@ import (
 func addPassword(data []string) {
 	// Load the config file
 	if File == "" {
-		cjdAdmin, err := loadCjdnsadmin()
-		if err != nil {
-			fmt.Println("Unable to load configuration file:", err)
-			return
+		var cjdnsAdmin *CjdnsAdmin
+		var err error
+		if !userSpecifiedCjdnsadmin {
+			cjdnsAdmin, err = loadCjdnsadmin()
+			if err != nil {
+				fmt.Println("Unable to load configuration file:", err)
+				return
+			}
+		} else {
+			cjdnsAdmin, err = readCjdnsadmin(userCjdnsadmin)
+			if err != nil {
+				fmt.Println("Error loading cjdnsadmin file:", err)
+				return
+			}
 		}
-		File = cjdAdmin.Config
+		File = cjdnsAdmin.Config
 		if File == "" {
 			fmt.Println("Please specify the configuration file in your .cjdnsadmin file or pass the --file flag.")
 			return

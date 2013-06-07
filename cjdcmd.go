@@ -48,8 +48,8 @@ const (
 
 	defaultPass      = ""
 	defaultAdminBind = ""
-    
-    defaultNoDNS     = false
+
+	defaultNoDNS = false
 
 	pingCmd       = "ping"
 	logCmd        = "log"
@@ -85,8 +85,11 @@ var (
 
 	AdminPassword string
 	AdminBind     string
-    
-    NoDNS         bool
+
+	NoDNS bool
+
+	userSpecifiedCjdnsadmin bool
+	userCjdnsadmin          string
 )
 
 type Route struct {
@@ -119,8 +122,10 @@ func init() {
 		usageOutFile = "[all] the cjdroute.conf configuration file to save to"
 
 		usagePass = "[all] specify the admin password"
-        
-        usageNoDNS = "[all] Do not perform DNS lookups (greatly improves speed)"
+
+		usageNoDNS = "[all] Do not perform DNS lookups (greatly improves speed)"
+
+		usageCjdnsadmin = "[all] Specify the cjdnsadmin file to use"
 	)
 
 	fs.StringVar(&File, "file", "", usageFile)
@@ -143,8 +148,10 @@ func init() {
 
 	fs.StringVar(&LogFile, "logfile", defaultLogFile, usageLogFile)
 	fs.IntVar(&LogFileLine, "line", defaultLogFileLine, usageLogFileLine)
-    
-    fs.BoolVar(&NoDNS, "nodns", defaultNoDNS, usageNoDNS)
+
+	fs.BoolVar(&NoDNS, "nodns", defaultNoDNS, usageNoDNS)
+
+	fs.StringVar(&userCjdnsadmin, "cjdnsadmin", "", usageCjdnsadmin)
 
 	// Seed the PRG
 	rand.Seed(time.Now().UTC().UnixNano())
@@ -193,7 +200,14 @@ func main() {
 			return
 		}
 	}
-	// capture ctrl+c (actually any kind of kill signal...) 
+
+	// Check to see if the user specified a cjdnsadmin file to use instead of
+	// the default
+	if userCjdnsadmin != "" {
+		userSpecifiedCjdnsadmin = true
+	}
+
+	// capture ctrl+c (actually any kind of kill signal...)
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	go func() {
@@ -230,12 +244,21 @@ func main() {
 	// Generates a .cjdnsadmin file
 	case cjdnsadminCmd:
 		if File == "" {
-			cjdAdmin, err := loadCjdnsadmin()
-			if err != nil {
-				fmt.Println("Unable to load configuration file:", err)
-				return
+			var cjdnsAdmin *CjdnsAdmin
+			if !userSpecifiedCjdnsadmin {
+				cjdnsAdmin, err = loadCjdnsadmin()
+				if err != nil {
+					fmt.Println("Unable to load configuration file:", err)
+					return
+				}
+			} else {
+				cjdnsAdmin, err = readCjdnsadmin(userCjdnsadmin)
+				if err != nil {
+					fmt.Println("Error loading cjdnsadmin file:", err)
+					return
+				}
 			}
-			File = cjdAdmin.Config
+			File = cjdnsAdmin.Config
 			if File == "" {
 				fmt.Println("Please specify the configuration file in your .cjdnsadmin file or pass the --file flag.")
 				return
@@ -296,12 +319,21 @@ func main() {
 	case cleanCfgCmd:
 		// Load the config file
 		if File == "" {
-			cjdAdmin, err := loadCjdnsadmin()
-			if err != nil {
-				fmt.Println("Unable to load configuration file:", err)
-				return
+			var cjdnsAdmin *CjdnsAdmin
+			if !userSpecifiedCjdnsadmin {
+				cjdnsAdmin, err = loadCjdnsadmin()
+				if err != nil {
+					fmt.Println("Unable to load configuration file:", err)
+					return
+				}
+			} else {
+				cjdnsAdmin, err = readCjdnsadmin(userCjdnsadmin)
+				if err != nil {
+					fmt.Println("Error loading cjdnsadmin file:", err)
+					return
+				}
 			}
-			File = cjdAdmin.Config
+			File = cjdnsAdmin.Config
 			if File == "" {
 				fmt.Println("Please specify the configuration file in your .cjdnsadmin file or pass the --file flag.")
 				return
@@ -649,12 +681,12 @@ func main() {
 		count := 0
 		for _, p := range peers {
 			var tText string
-            hostname, _ := resolveIP(p.IP)
-            if hostname != "" {
-                tText = p.IP + " (" + hostname + ")"
-            } else {
-                tText = p.IP
-            }
+			hostname, _ := resolveIP(p.IP)
+			if hostname != "" {
+				tText = p.IP + " (" + hostname + ")"
+			} else {
+				tText = p.IP
+			}
 			fmt.Printf("IP: %v -- Path: %s -- Link: %.0f\n", tText, p.Path, p.Link)
 			count++
 		}
