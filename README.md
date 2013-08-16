@@ -50,9 +50,21 @@ To install go, check out the [install instructions](http://golang.org/doc/instal
 
 #### Ubuntu (and other Debian variants)
 
-Ubuntu and other Debian variants can use apt to install:
+Ubuntu and other Debian variants do not have go 1.1 in their repositories. The easiest way to get it is to use `godeb`. Follow the instructions [here](http://blog.labix.org/2013/06/15/in-flight-deb-packages-of-go), or:
 
-	apt-get install golang
+    # 64 bit:
+    wget https://godeb.s3.amazonaws.com/godeb-amd64.tar.gz
+    # or 32 bit:
+    wget https://godeb.s3.amazonaws.com/godeb-386.tar.gz
+    
+    # untar it:
+    tar xzf godeb-*.tar.gz
+    
+    # execute it:
+    ./godeb install
+    
+    # Clean up:
+    rm godeb-*.tar.gz godeb
 
 #### Mac OSX
 
