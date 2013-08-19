@@ -33,9 +33,9 @@ import (
 	"time"
 )
 
-const (
-	Version = "0.5.1"
+var Version = "0.5.1"
 
+const (
 	magicalLinkConstant = 5366870.0 //Determined by cjd way back in the dark ages.
 
 	defaultPingTimeout  = 5000 //5 seconds
