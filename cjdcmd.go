@@ -634,63 +634,16 @@ func main() {
 
 	case peerCmd:
 		user, err := adminConnect()
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		globalData.User = user
-		peers := make([]*Route, 0)
-		table := getTable(globalData.User)
-		sort.Sort(ByQuality{table})
-		//fmt.Println("Finding all connected peers")
+		if err != nil { fmt.Println(err); return; }
 
-		for i := range table {
+    // no target specified, use ourselves
+    if len(data) == 0 { data = append(data, "0000.0000.0000.0001"); }
 
-			if table[i].Link < 1 {
-				continue
-			}
-			if table[i].RawPath == 1 {
-				continue
-			}
-			response, err := getHops(table, table[i].RawPath)
-			if err != nil {
-				fmt.Println(err)
-			}
+    target, err := setTarget(data, true);
+    if err != nil { fmt.Println(err); return; }
+		globalData.User = user;
+    doPeers(user, target);
 
-			sort.Sort(ByPath{response})
-
-			var peer *Route
-			if len(response) > 1 {
-				peer = response[1]
-			} else {
-				peer = response[0]
-			}
-
-			found := false
-			for _, p := range peers {
-				if p == peer {
-					found = true
-					break
-				}
-			}
-
-			if !found {
-				peers = append(peers, peer)
-			}
-		}
-		count := 0
-		for _, p := range peers {
-			var tText string
-			hostname, _ := resolveIP(p.IP)
-			if hostname != "" {
-				tText = p.IP + " (" + hostname + ")"
-			} else {
-				tText = p.IP
-			}
-			fmt.Printf("IP: %v -- Path: %s -- Link: %.0f\n", tText, p.Path, p.Link)
-			count++
-		}
-		//fmt.Println("Connected to", count, "peers")
 	case versionCmd:
 		// TODO(inhies): Ping a specific node and return it's cjdns version, or
 		// ping all nodes in the routing table and get their versions
