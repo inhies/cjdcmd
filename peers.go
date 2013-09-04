@@ -105,8 +105,11 @@ func doPeers(user *admin.Admin, target Target) {
     }
     for _,nodeB := range table {
       if isOneHop(node.RawPath, nodeB.RawPath) || isOneHop(nodeB.RawPath, node.RawPath) {
-          for _,existing := range output {
-              if existing.RawPath == nodeB.RawPath { goto alreadyExists; }
+          for i,existing := range output {
+              if existing.IP == nodeB.IP {
+                  if existing.RawPath > nodeB.RawPath { table[i] = nodeB; }
+                  goto alreadyExists;
+              }
           }
           output = append(output, nodeB);
           alreadyExists:
