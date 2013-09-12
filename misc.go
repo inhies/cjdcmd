@@ -321,7 +321,7 @@ func setTarget(data []string, usePath bool) (target Target, err error) {
 	}
 
 	if usePath {
-		err = fmt.Errorf("You must specify an IPv6 address, hostname or cjdns path")
+		err = fmt.Errorf("You must specify an IPv6 address, hostname, or cjdns path")
 		return
 	}
 	err = fmt.Errorf("You must specify an IPv6 address or hostname")
