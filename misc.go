@@ -23,6 +23,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net"
+	"os"
 	"os/user"
 	"regexp"
 	"strconv"
@@ -184,10 +185,29 @@ func adminConnect() (user *admin.Admin, err error) {
 	return
 }
 
+// Check if a file exists
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true
+	}
+	return false
+}
+
 // Attempt to read the .cjdnsadmin file from the users home directory
 func loadCjdnsadmin() (cjdnsAdmin *CjdnsAdmin, err error) {
-	tUser, err := user.Current()
-	if err != nil {
+	sudo_user := os.Getenv("SUDO_USER")
+	var read_err error
+	var tUser *user.User
+	if sudo_user != "" {
+		tUser, read_err = user.Lookup(sudo_user)
+		if !fileExists(tUser.HomeDir + "/.cjdnsadmin") {
+			tUser, read_err = user.Current()
+		}
+	} else {
+		tUser, read_err = user.Current()
+	}
+	if read_err != nil {
 		return
 	}
 	cjdnsAdmin, err = readCjdnsadmin(tUser.HomeDir + "/.cjdnsadmin")
@@ -335,36 +355,35 @@ func usage() {
 	fmt.Println("")
 	fmt.Println("The commands are:")
 	fmt.Println("")
-        //fmt.Println("----------------------------------------------------------------------------------------------------")
-        fmt.Println("ping <IPv6/DNS/Path>                         --  Preforms a cjdns ping to a specified node")
-        fmt.Println("route <IPv6/DNS/Path>                        --  Prints all routes to a specific node")
-        fmt.Println("traceroute <IPv6/DNS/Path>                   --  Performs a traceroute on a specific node by pinging")
-        fmt.Println("                                                  each known hop to the tar on all known paths")
-        fmt.Println("ip <cjdns public key>                        --  Converts a cjdns public key to its corresponding")
-        fmt.Println("                                                  IPv6 address")
-        fmt.Println("peers [<IPv6/DNS/Path>]                      --  Displays a list of currently connected peers for a")
-        fmt.Println("                                                 node, is no node is specified your peers are shown.")
-        fmt.Println("host <IPv6/DNS>                              --  Returns a list of all known IP addresses for a")
-        fmt.Println("                                                  specified hostname or the hostname for an address")
-        fmt.Println("hostname [new hypedns hostname]              --  Without arguments, returns your HypeDNS hostname.")
-        fmt.Println("                                                  Passing a new hostname will change your HypeDNS")
-        fmt.Println("                                                  record")
-        fmt.Println("cjdnsadmin <-file /path/to/cjdroute.conf>    --  Generates a .cjdnsadmin file in your home diectory")
-        fmt.Println("                                                  using the specified cjdroute.conf as input")
-        fmt.Println("addpeer '<json peer details>'                --  Adds the peer details to your config file")
-        fmt.Println("addpass [password]                           --  Adds the password to your config file, or generates")
-        fmt.Println("                                                  one and then adds that")
-        fmt.Println("cleanconfig [-file] [-outfile]               --  Strips all comments from the config file and saves")
-        fmt.Println("                                                  it at outfile")
-        fmt.Println("log [-l level] [-logfile file] [-line]       --  Prints cjdns logs to stdout")
-        fmt.Println("passgen                                      --  Generates a pseudo-random alphanumeric password")
-        fmt.Println("                                                  between 15 and 50 characters in length")
-        fmt.Println("dump                                         --  Dumps the entire routing table to stdout")
-        fmt.Println("kill                                         --  Gracefully kills cjdns")
-        fmt.Println("memory                                       --  Returns the bytes of memory allocated by the router")
+	//fmt.Println("----------------------------------------------------------------------------------------------------")
+	fmt.Println("ping <IPv6/DNS/Path>                         --  Preforms a cjdns ping to a specified node")
+	fmt.Println("route <IPv6/DNS/Path>                        --  Prints all routes to a specific node")
+	fmt.Println("traceroute <IPv6/DNS/Path>                   --  Performs a traceroute on a specific node by pinging")
+	fmt.Println("                                                  each known hop to the tar on all known paths")
+	fmt.Println("ip <cjdns public key>                        --  Converts a cjdns public key to its corresponding")
+	fmt.Println("                                                  IPv6 address")
+	fmt.Println("peers [<IPv6/DNS/Path>]                      --  Displays a list of currently connected peers for a")
+	fmt.Println("                                                 node, is no node is specified your peers are shown.")
+	fmt.Println("host <IPv6/DNS>                              --  Returns a list of all known IP addresses for a")
+	fmt.Println("                                                  specified hostname or the hostname for an address")
+	fmt.Println("hostname [new hypedns hostname]              --  Without arguments, returns your HypeDNS hostname.")
+	fmt.Println("                                                  Passing a new hostname will change your HypeDNS")
+	fmt.Println("                                                  record")
+	fmt.Println("cjdnsadmin <-file /path/to/cjdroute.conf>    --  Generates a .cjdnsadmin file in your home diectory")
+	fmt.Println("                                                  using the specified cjdroute.conf as input")
+	fmt.Println("addpeer '<json peer details>'                --  Adds the peer details to your config file")
+	fmt.Println("addpass [password]                           --  Adds the password to your config file, or generates")
+	fmt.Println("                                                  one and then adds that")
+	fmt.Println("cleanconfig [-file] [-outfile]               --  Strips all comments from the config file and saves")
+	fmt.Println("                                                  it at outfile")
+	fmt.Println("log [-l level] [-logfile file] [-line]       --  Prints cjdns logs to stdout")
+	fmt.Println("passgen                                      --  Generates a pseudo-random alphanumeric password")
+	fmt.Println("                                                  between 15 and 50 characters in length")
+	fmt.Println("dump                                         --  Dumps the entire routing table to stdout")
+	fmt.Println("kill                                         --  Gracefully kills cjdns")
+	fmt.Println("memory                                       --  Returns the bytes of memory allocated by the router")
 	fmt.Println("Use `cjdcmd --help` for a list of flags.")
-        fmt.Println("")
-
+	fmt.Println("")
 
 }
 
