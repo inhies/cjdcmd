@@ -23,6 +23,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net"
+	"os"
 	"os/user"
 	"regexp"
 	"strconv"
@@ -184,10 +185,29 @@ func adminConnect() (user *admin.Admin, err error) {
 	return
 }
 
+// Check if a file exists
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true
+	}
+	return false
+}
+
 // Attempt to read the .cjdnsadmin file from the users home directory
 func loadCjdnsadmin() (cjdnsAdmin *CjdnsAdmin, err error) {
-	tUser, err := user.Current()
-	if err != nil {
+	sudo_user := os.Getenv("SUDO_USER")
+	var read_err error
+	var tUser *user.User
+	if sudo_user != "" {
+		tUser, read_err = user.Lookup(sudo_user)
+		if !fileExists(tUser.HomeDir + "/.cjdnsadmin") {
+			tUser, read_err = user.Current()
+		}
+	} else {
+		tUser, read_err = user.Current()
+	}
+	if read_err != nil {
 		return
 	}
 	cjdnsAdmin, err = readCjdnsadmin(tUser.HomeDir + "/.cjdnsadmin")
