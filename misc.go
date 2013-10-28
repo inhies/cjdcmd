@@ -336,7 +336,7 @@ func usage() {
 	fmt.Println("The commands are:")
 	fmt.Println("")
         //fmt.Println("----------------------------------------------------------------------------------------------------")
-        fmt.Println("ping <IPv6/DNS/Path>                         --  Preforms a cjdns ping to a specified node")
+        fmt.Println("ping <IPv6/DNS/Path>                         --  Performs a cjdns ping to a specified node")
         fmt.Println("route <IPv6/DNS/Path>                        --  Prints all routes to a specific node")
         fmt.Println("traceroute <IPv6/DNS/Path>                   --  Performs a traceroute on a specific node by pinging")
         fmt.Println("                                                  each known hop to the tar on all known paths")
