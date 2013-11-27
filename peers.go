@@ -57,9 +57,6 @@ func isOneHop(destination uint64, midPath uint64) bool {
 	return log2x64(c) == 10
 }
 
-//func doPeers(target Target) { fmt.Println("TODO!") }
-
-// DEPRECIATED! (but kept here in loving memory of..)
 /**
  * Print the peers of a node.
  * @param user the admin connection
@@ -142,5 +139,16 @@ func doPeers(user *cjdns.Conn, target Target) {
 			tText = tText[0 : len(tText)-2]
 		}
 		fmt.Printf("IP: %v -- Path: %s -- Link: %.0f\n", tText, node.Path, node.Link)
+	}
+}
+
+func doOwnPeers(user *cjdns.Conn) {
+	peers, err := user.InterfaceController_peerStats()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	for _, node := range peers {
+		fmt.Printf("Label:%s -- Key: %s\n", node.SwitchLabel, node.PublicKey)
 	}
 }

@@ -650,17 +650,17 @@ func main() {
 
 		// no target specified, use ourselves
 		if len(data) == 0 {
-			data = append(data, "0000.0000.0000.0001")
-		}
+			doOwnPeers(user)
+		} else {
 
-		target, err := setTarget(data, true)
-		if err != nil {
-			fmt.Println(err)
-			return
+			target, err := setTarget(data, true)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			globalData.User = user
+			doPeers(user, target)
 		}
-		globalData.User = user
-		doPeers(user, target)
-
 	case versionCmd:
 		// TODO(inhies): Ping a specific node and return it's cjdns version, or
 		// ping all nodes in the routing table and get their versions
