@@ -15,7 +15,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/inhies/go-cjdns/admin"
+	"github.com/inhies/go-cjdns/cjdns"
 	"math"
 )
 
@@ -26,8 +26,8 @@ type Ping struct {
 }
 
 // Pings a node and generates statistics
-func pingNode(user *admin.Admin, ping *Ping) (err error) {
-	response, err := admin.RouterModule_pingNode(user, ping.Target, PingTimeout)
+func pingNode(user *cjdns.Conn, ping *Ping) (err error) {
+	response, err := user.RouterModule_pingNode(ping.Target, PingTimeout)
 
 	if err != nil {
 		return

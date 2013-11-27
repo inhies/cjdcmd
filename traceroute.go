@@ -15,9 +15,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/inhies/go-cjdns/admin"
+	"github.com/inhies/go-cjdns/cjdns"
 	"math"
-	"sort"
 )
 
 type Routes []*Route
@@ -35,8 +34,12 @@ type ByQuality struct{ Routes }
 func (s ByQuality) Less(i, j int) bool { return s.Routes[i].RawLink > s.Routes[j].RawLink }
 
 // TODO(inhies): Make the output nicely formatted
-func doTraceroute(user *admin.Admin, target Target) {
-	table := getTable(user)
+func doTraceroute(user *cjdns.Conn, target Target) {
+	table, err := user.NodeStore_dumpTable()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 	usingPath := false
 	var tText string
 	if validIP(target.Supplied) {
@@ -90,8 +93,7 @@ func doTraceroute(user *admin.Admin, target Target) {
 		if err != nil {
 			fmt.Println("Error:", err)
 		}
-
-		sort.Sort(ByPath{response})
+		response.SortByPath()
 		count++
 		fmt.Printf("\nRoute #%d to target: %v\n", count, table[i].Path)
 		for y, p := range response {
@@ -124,7 +126,7 @@ func doTraceroute(user *admin.Admin, target Target) {
 	fmt.Println("Found", count, "routes")
 }
 
-func getHops(table []*Route, fullPath uint64) (output []*Route, err error) {
+func getHops(table cjdns.Routes, fullPath uint64) (output cjdns.Routes, err error) {
 	for i := range table {
 		candPath := table[i].RawPath
 

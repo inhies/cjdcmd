@@ -17,7 +17,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/inhies/go-cjdns/admin"
+	"github.com/inhies/go-cjdns/cjdns"
 	"github.com/inhies/go-cjdns/config"
 	"io/ioutil"
 	"math/rand"
@@ -27,7 +27,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -102,7 +101,7 @@ type Route struct {
 }
 
 type Data struct {
-	User            *admin.Admin
+	User            *cjdns.Conn
 	LoggingStreamID string
 }
 
@@ -184,7 +183,7 @@ func main() {
 	//Setup variables now so that if the program is killed we can still finish what we're doing
 	ping := &Ping{}
 
-	globalData := &Data{&admin.Admin{}, ""}
+	globalData := &Data{&cjdns.Conn{}, ""}
 	var err error
 	if File != "" {
 		File, err = filepath.Abs(File)
@@ -215,7 +214,7 @@ func main() {
 			fmt.Printf("\n")
 			if command == "log" {
 				// Unsubscribe from logging
-				_, err := admin.AdminLog_unsubscribe(globalData.User, globalData.LoggingStreamID)
+				_, err := globalData.User.AdminLog_unsubscribe(globalData.LoggingStreamID)
 				if err != nil {
 					fmt.Printf("%v\n", err)
 					return
@@ -244,7 +243,7 @@ func main() {
 	// Generates a .cjdnsadmin file
 	case cjdnsadminCmd:
 		if File == "" {
-			var cjdnsAdmin *CjdnsAdmin
+			var cjdnsAdmin *cjdns.CjdnsAdminConfig
 			if !userSpecifiedCjdnsadmin {
 				cjdnsAdmin, err = loadCjdnsadmin()
 				if err != nil {
@@ -282,8 +281,8 @@ func main() {
 			return
 		}
 
-		adminOut := CjdnsAdmin{
-			Address:  addr,
+		adminOut := cjdns.CjdnsAdminConfig{
+			Addr:     addr,
 			Port:     portInt,
 			Password: conf.Admin.Password,
 			Config:   File,
@@ -319,7 +318,7 @@ func main() {
 	case cleanCfgCmd:
 		// Load the config file
 		if File == "" {
-			var cjdnsAdmin *CjdnsAdmin
+			var cjdnsAdmin *cjdns.CjdnsAdminConfig
 			if !userSpecifiedCjdnsadmin {
 				cjdnsAdmin, err = loadCjdnsadmin()
 				if err != nil {
@@ -442,7 +441,7 @@ func main() {
 			fmt.Println("Invalid public key")
 			return
 		}
-		parsed, err := admin.PubKeyToIP(ip)
+		parsed, err := cjdns.PubKeyToIP(string(ip))
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -491,9 +490,14 @@ func main() {
 		}
 		fmt.Printf("Showing all routes to %v\n", tText)
 		globalData.User = user
-		table := getTable(globalData.User)
+		table, err := user.NodeStore_dumpTable()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 
-		sort.Sort(ByQuality{table})
+		table.SortByQuality()
+
 		count := 0
 		for _, v := range table {
 			if v.IP == target.Target || v.Path == target.Target {
@@ -533,7 +537,12 @@ func main() {
 			// If we were given a path, resolve the IP
 		} else if validPath(target.Supplied) {
 			tText = target.Supplied
-			table := getTable(globalData.User)
+			table, err := user.NodeStore_dumpTable()
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+
 			for _, v := range table {
 				if v.Path == target.Supplied {
 					// We have the IP now
@@ -598,7 +607,7 @@ func main() {
 		}
 		globalData.User = user
 		var response chan map[string]interface{}
-		response, globalData.LoggingStreamID, err = admin.AdminLog_subscribe(globalData.User, LogFile, LogLevel, LogFileLine)
+		response, globalData.LoggingStreamID, err = globalData.User.AdminLog_subscribe(LogFile, LogLevel, LogFileLine)
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
 			return
@@ -611,7 +620,7 @@ func main() {
 			for {
 				timeout := 10 * time.Second
 				time.Sleep(timeout)
-				ok, err := admin.SendPing(globalData.User, 1000)
+				ok, err := globalData.User.SendPing(1000)
 
 				if err != nil {
 					fmt.Println("Error sending periodic ping to cjdns:", err)
@@ -634,15 +643,23 @@ func main() {
 
 	case peerCmd:
 		user, err := adminConnect()
-		if err != nil { fmt.Println(err); return; }
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 
-    // no target specified, use ourselves
-    if len(data) == 0 { data = append(data, "0000.0000.0000.0001"); }
+		// no target specified, use ourselves
+		if len(data) == 0 {
+			data = append(data, "0000.0000.0000.0001")
+		}
 
-    target, err := setTarget(data, true);
-    if err != nil { fmt.Println(err); return; }
-		globalData.User = user;
-    doPeers(user, target);
+		target, err := setTarget(data, true)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		globalData.User = user
+		doPeers(user, target)
 
 	case versionCmd:
 		// TODO(inhies): Ping a specific node and return it's cjdns version, or
@@ -656,13 +673,13 @@ func main() {
 			return
 		}
 		globalData.User = user
-		_, err = admin.Core_exit(globalData.User)
+		_, err = globalData.User.Core_exit()
 		if err != nil {
 			fmt.Printf("%v\n", err)
 			return
 		}
 		alive := true
-		for ; alive; alive, _ = admin.SendPing(globalData.User, 1000) {
+		for ; alive; alive, _ = globalData.User.SendPing(1000) {
 			runtime.Gosched() //play nice
 		}
 		fmt.Println("cjdns is shutting down...")
@@ -675,8 +692,13 @@ func main() {
 		}
 		globalData.User = user
 		// TODO: add flag to show zero link quality routes, by default hide them
-		table := getTable(globalData.User)
-		sort.Sort(ByQuality{table})
+		table, err := user.NodeStore_dumpTable()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		table.SortByQuality()
 		k := 1
 		for _, v := range table {
 			if v.Link >= 1 {
@@ -692,7 +714,7 @@ func main() {
 		}
 		globalData.User = user
 
-		response, err := admin.Memory(globalData.User)
+		response, err := globalData.User.Memory()
 		if err != nil {
 			fmt.Printf("%v\n", err)
 			return

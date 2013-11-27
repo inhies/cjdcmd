@@ -15,54 +15,64 @@ package main
 
 import (
 	"fmt"
-	"github.com/inhies/go-cjdns/admin"
+	"github.com/inhies/go-cjdns/cjdns"
 )
 
 // Log base 2 of a uint64
 func log2x64(number uint64) uint {
-    var out uint = 0
-    for number != 0 {
-        number = number >> 1
-        out++
-    }
-    return out
+	var out uint = 0
+	for number != 0 {
+		number = number >> 1
+		out++
+	}
+	return out
 }
 
 // return true if packets destine for destination go through midPath.
 func isBehind(destination uint64, midPath uint64) bool {
-    if midPath > destination {
-        return false
-    }
-    mask := ^uint64(0) >> (64 - log2x64(midPath))
-    return (destination & mask) == (midPath & mask)
+	if midPath > destination {
+		return false
+	}
+	mask := ^uint64(0) >> (64 - log2x64(midPath))
+	return (destination & mask) == (midPath & mask)
 }
 
 // Return true if destination is 1 hop away from midPath
 // WARNING: this depends on implementation quirks of the router and will be broken in the future.
 // NOTE: This may have false positives which isBehind() will remove.
 func isOneHop(destination uint64, midPath uint64) bool {
-    if !isBehind(destination, midPath) { return false; }
+	if !isBehind(destination, midPath) {
+		return false
+	}
 
-    // The "why" is here:
-    // http://gitboria.com/cjd/cjdns/tree/master/switch/NumberCompress.h#L143
-    c := destination >> log2x64(midPath)
-    if c&1 != 0 {
-        return log2x64(c) == 4
-    }
-    if c&3 != 0 {
-        return log2x64(c) == 7
-    }
-    return log2x64(c) == 10
+	// The "why" is here:
+	// http://gitboria.com/cjd/cjdns/tree/master/switch/NumberCompress.h#L143
+	c := destination >> log2x64(midPath)
+	if c&1 != 0 {
+		return log2x64(c) == 4
+	}
+	if c&3 != 0 {
+		return log2x64(c) == 7
+	}
+	return log2x64(c) == 10
 }
 
+//func doPeers(target Target) { fmt.Println("TODO!") }
+
+// DEPRECIATED! (but kept here in loving memory of..)
 /**
  * Print the peers of a node.
  * @param user the admin connection
  * @param target the node to get peers for, if it is the switch label 0000.0000.0000.0001
  *               then this node's peers will be gotten.
  */
-func doPeers(user *admin.Admin, target Target) {
-	table := getTable(user)
+
+func doPeers(user *cjdns.Conn, target Target) {
+	table, err := user.NodeStore_dumpTable()
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 	usingPath := false
 	var tText string
 	if validIP(target.Supplied) {
@@ -96,39 +106,41 @@ func doPeers(user *admin.Admin, target Target) {
 
 	fmt.Println("Finding all direct peers of", tText)
 
-  var output []*Route
-	for _,node := range table {
-    if usingPath && node.Path != target.Supplied {
-      continue
-    } else if !usingPath && node.IP != target.Target {
-      continue
-    }
-    for _,nodeB := range table {
-      if isOneHop(node.RawPath, nodeB.RawPath) || isOneHop(nodeB.RawPath, node.RawPath) {
-          for i,existing := range output {
-              if existing.IP == nodeB.IP {
-                  if existing.RawPath > nodeB.RawPath { table[i] = nodeB; }
-                  goto alreadyExists;
-              }
-          }
-          output = append(output, nodeB);
-          alreadyExists:
-      }
-    }
-  }
+	var output cjdns.Routes
+	for _, node := range table {
+		if usingPath && node.Path != target.Supplied {
+			continue
+		} else if !usingPath && node.IP != target.Target {
+			continue
+		}
+		for _, nodeB := range table {
+			if isOneHop(node.RawPath, nodeB.RawPath) || isOneHop(nodeB.RawPath, node.RawPath) {
+				for i, existing := range output {
+					if existing.IP == nodeB.IP {
+						if existing.RawPath > nodeB.RawPath {
+							table[i] = nodeB
+						}
+						goto alreadyExists
+					}
+				}
+				output = append(output, nodeB)
+			alreadyExists:
+			}
+		}
+	}
 
-  for _,node := range output {
+	for _, node := range output {
 		hostname, _ := resolveIP(node.IP)
-    tText := node.IP
-    if hostname != "" {
-        tText += " (" + hostname + ")"
-    } else {
-        tText += "\t";
-    }
-    tText += "\t\t\t\t";
-    for i:=40; i < len(tText) && i < 80; i+=16 {
-        tText = tText[0:len(tText)-2];
-    }
-    fmt.Printf("IP: %v -- Path: %s -- Link: %.0f\n", tText, node.Path, node.Link)
-  }
+		tText := node.IP
+		if hostname != "" {
+			tText += " (" + hostname + ")"
+		} else {
+			tText += "\t"
+		}
+		tText += "\t\t\t\t"
+		for i := 40; i < len(tText) && i < 80; i += 16 {
+			tText = tText[0 : len(tText)-2]
+		}
+		fmt.Printf("IP: %v -- Path: %s -- Link: %.0f\n", tText, node.Path, node.Link)
+	}
 }
