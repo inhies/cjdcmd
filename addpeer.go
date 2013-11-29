@@ -18,7 +18,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"github.com/inhies/go-cjdns/cjdns"
+	"github.com/inhies/go-cjdns/admin"
 	"github.com/inhies/go-cjdns/config"
 	"net"
 	"os"
@@ -28,7 +28,7 @@ import (
 func addPassword(data []string) {
 	// Load the config file
 	if File == "" {
-		var cjdnsAdmin *cjdns.CjdnsAdminConfig
+		var cjdnsAdmin *admin.CjdnsAdminConfig
 		var err error
 		if !userSpecifiedCjdnsadmin {
 			cjdnsAdmin, err = loadCjdnsadmin()

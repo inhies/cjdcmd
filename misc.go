@@ -17,7 +17,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/inhies/go-cjdns/cjdns"
+	"github.com/inhies/go-cjdns/admin"
 	"github.com/inhies/go-cjdns/config"
 	"io/ioutil"
 	"math/rand"
@@ -52,7 +52,7 @@ func gotYes(defaultYes bool) bool {
 }
 
 // Reads the .cjdnsadmin file and returns the structured contents
-func readCjdnsadmin(file string) (admin *cjdns.CjdnsAdminConfig, err error) {
+func readCjdnsadmin(file string) (admin *admin.CjdnsAdminConfig, err error) {
 	rawFile, err := ioutil.ReadFile(file)
 	if err != nil {
 		return nil, err
@@ -114,9 +114,9 @@ func readConfig() (conf *config.Config, err error) {
 }
 
 // Attempt to connect to cjdns
-func adminConnect() (user *cjdns.Conn, err error) {
+func adminConnect() (user *admin.Conn, err error) {
 	// If nothing else has already set this
-	var cjdnsAdmin *cjdns.CjdnsAdminConfig
+	var cjdnsAdmin *admin.CjdnsAdminConfig
 	if AdminBind == "" || AdminPassword == "" {
 		// If we still have no idea which configuration file to use
 		if File == "" {
@@ -157,7 +157,7 @@ func adminConnect() (user *cjdns.Conn, err error) {
 			}
 		}
 	}
-	user, err = cjdns.Connect(cjdnsAdmin)
+	user, err = admin.Connect(cjdnsAdmin)
 	if err != nil {
 		if e, ok := err.(net.Error); ok {
 			if e.Timeout() {
@@ -176,7 +176,7 @@ func adminConnect() (user *cjdns.Conn, err error) {
 }
 
 // Attempt to read the .cjdnsadmin file from the users home directory
-func loadCjdnsadmin() (cjdnsAdmin *cjdns.CjdnsAdminConfig, err error) {
+func loadCjdnsadmin() (cjdnsAdmin *admin.CjdnsAdminConfig, err error) {
 	tUser, err := user.Current()
 	if err != nil {
 		return

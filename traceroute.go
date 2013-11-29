@@ -15,7 +15,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/inhies/go-cjdns/cjdns"
+	"github.com/inhies/go-cjdns/admin"
 	"math"
 )
 
@@ -34,7 +34,7 @@ type ByQuality struct{ Routes }
 func (s ByQuality) Less(i, j int) bool { return s.Routes[i].RawLink > s.Routes[j].RawLink }
 
 // TODO(inhies): Make the output nicely formatted
-func doTraceroute(user *cjdns.Conn, target Target) {
+func doTraceroute(user *admin.Conn, target Target) {
 	table, err := user.NodeStore_dumpTable()
 	if err != nil {
 		fmt.Println(err)
@@ -55,7 +55,7 @@ func doTraceroute(user *cjdns.Conn, target Target) {
 		tText = target.Supplied
 		//table := getTable(globalData.User)
 		for _, v := range table {
-			if v.Path == target.Supplied {
+			if v.Path.String() == target.Supplied {
 				// We have the IP now
 				tText = target.Supplied + " (" + v.IP + ")"
 
@@ -76,7 +76,7 @@ func doTraceroute(user *cjdns.Conn, target Target) {
 	count := 0
 	for i := range table {
 		if usingPath {
-			if table[i].Path != target.Supplied {
+			if table[i].Path.String() != target.Supplied {
 				continue
 			}
 		} else {
@@ -89,7 +89,7 @@ func doTraceroute(user *cjdns.Conn, target Target) {
 			continue
 		}
 
-		response, err := getHops(table, table[i].RawPath)
+		response, err := getHops(table, table[i].Path)
 		if err != nil {
 			fmt.Println("Error:", err)
 		}
@@ -108,7 +108,7 @@ func doTraceroute(user *cjdns.Conn, target Target) {
 			}
 			for x := 1; x <= 3; x++ {
 				tRoute := &Ping{}
-				tRoute.Target = p.Path
+				tRoute.Target = p.Path.String()
 				err := pingNode(user, tRoute)
 				if err != nil {
 					fmt.Println("Error:", err)
@@ -126,14 +126,14 @@ func doTraceroute(user *cjdns.Conn, target Target) {
 	fmt.Println("Found", count, "routes")
 }
 
-func getHops(table cjdns.Routes, fullPath uint64) (output cjdns.Routes, err error) {
+func getHops(table admin.Routes, fullPath admin.Path) (output admin.Routes, err error) {
 	for i := range table {
-		candPath := table[i].RawPath
+		candPath := table[i].Path
 
 		g := 64 - uint64(math.Log2(float64(candPath)))
 		h := uint64(uint64(0xffffffffffffffff) >> g)
 
-		if h&fullPath == h&candPath {
+		if h&uint64(fullPath) == h&uint64(candPath) {
 			output = append(output, table[i])
 		}
 	}

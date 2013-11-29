@@ -15,11 +15,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/inhies/go-cjdns/cjdns"
+	"github.com/inhies/go-cjdns/admin"
 )
 
+//TODO(inhies): These functions now live in go-cjdns/cjdns, lets use them
+
 // Log base 2 of a uint64
-func log2x64(number uint64) uint {
+func log2x64(number admin.Path) uint {
 	var out uint = 0
 	for number != 0 {
 		number = number >> 1
@@ -29,18 +31,18 @@ func log2x64(number uint64) uint {
 }
 
 // return true if packets destine for destination go through midPath.
-func isBehind(destination uint64, midPath uint64) bool {
+func isBehind(destination, midPath admin.Path) bool {
 	if midPath > destination {
 		return false
 	}
 	mask := ^uint64(0) >> (64 - log2x64(midPath))
-	return (destination & mask) == (midPath & mask)
+	return (uint64(destination) & mask) == (uint64(midPath) & mask)
 }
 
 // Return true if destination is 1 hop away from midPath
 // WARNING: this depends on implementation quirks of the router and will be broken in the future.
 // NOTE: This may have false positives which isBehind() will remove.
-func isOneHop(destination uint64, midPath uint64) bool {
+func isOneHop(destination, midPath admin.Path) bool {
 	if !isBehind(destination, midPath) {
 		return false
 	}
@@ -64,7 +66,7 @@ func isOneHop(destination uint64, midPath uint64) bool {
  *               then this node's peers will be gotten.
  */
 
-func doPeers(user *cjdns.Conn, target Target) {
+func doPeers(user *admin.Conn, target Target) {
 	table, err := user.NodeStore_dumpTable()
 	if err != nil {
 		fmt.Println(err)
@@ -85,7 +87,7 @@ func doPeers(user *cjdns.Conn, target Target) {
 		tText = target.Supplied
 		//table := getTable(globalData.User)
 		for _, v := range table {
-			if v.Path == target.Supplied {
+			if v.Path.String() == target.Supplied {
 				// We have the IP now
 				tText = target.Supplied + " (" + v.IP + ")"
 
@@ -103,18 +105,18 @@ func doPeers(user *cjdns.Conn, target Target) {
 
 	fmt.Println("Finding all direct peers of", tText)
 
-	var output cjdns.Routes
+	var output admin.Routes
 	for _, node := range table {
-		if usingPath && node.Path != target.Supplied {
+		if usingPath && node.Path.String() != target.Supplied {
 			continue
 		} else if !usingPath && node.IP != target.Target {
 			continue
 		}
 		for _, nodeB := range table {
-			if isOneHop(node.RawPath, nodeB.RawPath) || isOneHop(nodeB.RawPath, node.RawPath) {
+			if isOneHop(node.Path, nodeB.Path) || isOneHop(nodeB.Path, node.Path) {
 				for i, existing := range output {
 					if existing.IP == nodeB.IP {
-						if existing.RawPath > nodeB.RawPath {
+						if existing.Path > nodeB.Path {
 							table[i] = nodeB
 						}
 						goto alreadyExists
@@ -142,7 +144,7 @@ func doPeers(user *cjdns.Conn, target Target) {
 	}
 }
 
-func doOwnPeers(user *cjdns.Conn) {
+func doOwnPeers(user *admin.Conn) {
 	peers, err := user.InterfaceController_peerStats()
 	if err != nil {
 		fmt.Println(err)

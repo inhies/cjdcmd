@@ -17,8 +17,9 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/inhies/go-cjdns/cjdns"
+	"github.com/inhies/go-cjdns/admin"
 	"github.com/inhies/go-cjdns/config"
+	"github.com/inhies/go-cjdns/key"
 	"io/ioutil"
 	"math/rand"
 	"os"
@@ -101,7 +102,7 @@ type Route struct {
 }
 
 type Data struct {
-	User            *cjdns.Conn
+	User            *admin.Conn
 	LoggingStreamID string
 }
 
@@ -183,7 +184,7 @@ func main() {
 	//Setup variables now so that if the program is killed we can still finish what we're doing
 	ping := &Ping{}
 
-	globalData := &Data{&cjdns.Conn{}, ""}
+	globalData := &Data{&admin.Conn{}, ""}
 	var err error
 	if File != "" {
 		File, err = filepath.Abs(File)
@@ -243,7 +244,7 @@ func main() {
 	// Generates a .cjdnsadmin file
 	case cjdnsadminCmd:
 		if File == "" {
-			var cjdnsAdmin *cjdns.CjdnsAdminConfig
+			var cjdnsAdmin *admin.CjdnsAdminConfig
 			if !userSpecifiedCjdnsadmin {
 				cjdnsAdmin, err = loadCjdnsadmin()
 				if err != nil {
@@ -281,7 +282,7 @@ func main() {
 			return
 		}
 
-		adminOut := cjdns.CjdnsAdminConfig{
+		adminOut := admin.CjdnsAdminConfig{
 			Addr:     addr,
 			Port:     portInt,
 			Password: conf.Admin.Password,
@@ -318,7 +319,7 @@ func main() {
 	case cleanCfgCmd:
 		// Load the config file
 		if File == "" {
-			var cjdnsAdmin *cjdns.CjdnsAdminConfig
+			var cjdnsAdmin *admin.CjdnsAdminConfig
 			if !userSpecifiedCjdnsadmin {
 				cjdnsAdmin, err = loadCjdnsadmin()
 				if err != nil {
@@ -441,7 +442,7 @@ func main() {
 			fmt.Println("Invalid public key")
 			return
 		}
-		parsed, err := cjdns.PubKeyToIP(string(ip))
+		parsed, err := key.PubKeyToIP(string(ip))
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -500,7 +501,7 @@ func main() {
 
 		count := 0
 		for _, v := range table {
-			if v.IP == target.Target || v.Path == target.Target {
+			if v.IP == target.Target || v.Path.String() == target.Target {
 				if v.Link > 1 {
 					fmt.Printf("IP: %v -- Version: %d -- Path: %s -- Link: %.0f\n", v.IP, v.Version, v.Path, v.Link)
 					count++
@@ -544,7 +545,7 @@ func main() {
 			}
 
 			for _, v := range table {
-				if v.Path == target.Supplied {
+				if v.Path.String() == target.Supplied {
 					// We have the IP now
 					tText = target.Supplied + " (" + v.IP + ")"
 
