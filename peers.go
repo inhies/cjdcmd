@@ -16,6 +16,7 @@ package main
 import (
 	"fmt"
 	"github.com/inhies/go-cjdns/admin"
+	"github.com/inhies/go-cjdns/key"
 )
 
 //TODO(inhies): These functions now live in go-cjdns/cjdns, lets use them
@@ -151,6 +152,15 @@ func doOwnPeers(user *admin.Conn) {
 		return
 	}
 	for _, node := range peers {
-		fmt.Printf("Label:%s -- Key: %s\n", node.SwitchLabel, node.PublicKey)
+		key, _ := key.DecodePublic(node.PublicKey)
+
+		hostname, _ := resolveIP(key.IP().String())
+		tText := key.IP().String()
+		if hostname != "" {
+			tText += " (" + hostname + ")"
+		} else {
+			tText += " "
+		}
+		fmt.Printf("Incoming: %t | IP: %s -- Path: %s\n", node.IsIncoming, tText, node.SwitchLabel) //, node., node.Link)
 	}
 }
