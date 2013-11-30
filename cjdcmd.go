@@ -442,17 +442,17 @@ func main() {
 			fmt.Println("Invalid public key")
 			return
 		}
-		parsed, err := key.PubKeyToIP(string(ip))
+		parsed, err := key.DecodePublic(string(ip))
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
 		var tText string
-		hostname, _ := resolveIP(string(parsed))
+		hostname, _ := resolveIP(parsed.String())
 		if hostname != "" {
-			tText = string(parsed) + " (" + hostname + ")"
+			tText = parsed.String() + " (" + hostname + ")"
 		} else {
-			tText = string(parsed)
+			tText = parsed.String()
 		}
 		fmt.Printf("%v\n", tText)
 
