@@ -16,7 +16,6 @@ package main
 import (
 	"fmt"
 	"github.com/inhies/go-cjdns/admin"
-	"math"
 )
 
 type Routes []*Route
@@ -57,12 +56,12 @@ func doTraceroute(user *admin.Conn, target Target) {
 		for _, v := range table {
 			if v.Path.String() == target.Supplied {
 				// We have the IP now
-				tText = target.Supplied + " (" + v.IP + ")"
+				tText = target.Supplied + " (" + v.IP.String() + ")"
 
 				// Try to get the hostname
-				hostname, _ := resolveIP(v.IP)
+				hostname, _ := resolveIP(v.IP.String())
 				if hostname != "" {
-					tText = target.Supplied + " (" + v.IP + " (" + hostname + "))"
+					tText = target.Supplied + " (" + v.IP.String() + " (" + hostname + "))"
 				}
 			}
 		}
@@ -80,7 +79,7 @@ func doTraceroute(user *admin.Conn, target Target) {
 				continue
 			}
 		} else {
-			if table[i].IP != target.Target {
+			if table[i].IP.String() != target.Target {
 				continue
 			}
 		}
@@ -89,7 +88,7 @@ func doTraceroute(user *admin.Conn, target Target) {
 			continue
 		}
 
-		response, err := getHops(table, table[i].Path)
+		response := table.Hops(*table[i].Path)
 		if err != nil {
 			fmt.Println("Error:", err)
 		}
@@ -97,11 +96,14 @@ func doTraceroute(user *admin.Conn, target Target) {
 		count++
 		fmt.Printf("\nRoute #%d to target: %v\n", count, table[i].Path)
 		for y, p := range response {
-			hostname, _ := resolveIP(p.IP)
+			hostname, _ := resolveIP(p.IP.String())
+			var IP string
 			if hostname != "" {
-				p.IP = p.IP + " (" + hostname + ")"
+				IP = p.IP.String() + " (" + hostname + ")"
+			} else {
+				IP = p.IP.String()
 			}
-			fmt.Printf("IP: %v -- Version: %d -- Path: %s -- Link: %.0f -- Time:", p.IP, p.Version, p.Path, p.Link)
+			fmt.Printf("IP: %v -- Version: %d -- Path: %s -- Link: %s -- Time:", IP, p.Version, p.Path, p.Link)
 			if y == 0 {
 				fmt.Printf(" Skipping ourself\n")
 				continue
@@ -126,6 +128,7 @@ func doTraceroute(user *admin.Conn, target Target) {
 	fmt.Println("Found", count, "routes")
 }
 
+/*
 func getHops(table admin.Routes, fullPath admin.Path) (output admin.Routes, err error) {
 	for i := range table {
 		candPath := table[i].Path
@@ -139,3 +142,4 @@ func getHops(table admin.Routes, fullPath admin.Path) (output admin.Routes, err 
 	}
 	return
 }
+*/

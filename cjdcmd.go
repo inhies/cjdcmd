@@ -27,7 +27,6 @@ import (
 	"os/user"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -44,7 +43,7 @@ const (
 
 	defaultLogLevel    = "DEBUG"
 	defaultLogFile     = ""
-	defaultLogFileLine = 0
+	defaultLogFileLine = -1
 
 	defaultPass      = ""
 	defaultAdminBind = ""
@@ -215,19 +214,15 @@ func main() {
 			fmt.Printf("\n")
 			if command == "log" {
 				// Unsubscribe from logging
-				_, err := globalData.User.AdminLog_unsubscribe(globalData.LoggingStreamID)
+				err := globalData.User.AdminLog_unsubscribe(globalData.LoggingStreamID)
 				if err != nil {
 					fmt.Printf("%v\n", err)
-					return
+					os.Exit(1)
 				}
 			}
 			if command == "ping" {
 				//stop pinging and print results
 				outputPing(ping)
-			}
-			// Close all the channels
-			for _, c := range globalData.User.Channels {
-				close(c)
 			}
 
 			// If we have an open connection, close it
@@ -505,7 +500,7 @@ func main() {
 
 		count := 0
 		for _, v := range table {
-			if v.IP == target.Target || v.Path.String() == target.Target {
+			if v.IP.String() == target.Target || v.Path.String() == target.Target {
 				if v.Link > 1 {
 					fmt.Printf("IP: %v -- Version: %d -- Path: %s -- Link: %.0f\n", v.IP, v.Version, v.Path, v.Link)
 					count++
@@ -551,12 +546,12 @@ func main() {
 			for _, v := range table {
 				if v.Path.String() == target.Supplied {
 					// We have the IP now
-					tText = target.Supplied + " (" + v.IP + ")"
+					tText = target.Supplied + " (" + v.IP.String() + ")"
 
 					// Try to get the hostname
-					hostname, _ := resolveIP(v.IP)
+					hostname, _ := resolveIP(v.IP.String())
 					if hostname != "" {
-						tText = target.Supplied + " (" + v.IP + " (" + hostname + "))"
+						tText = target.Supplied + " (" + v.IP.String() + " (" + hostname + "))"
 					}
 				}
 			}
@@ -611,8 +606,9 @@ func main() {
 			return
 		}
 		globalData.User = user
-		var response chan map[string]interface{}
-		response, globalData.LoggingStreamID, err = globalData.User.AdminLog_subscribe(LogFile, LogLevel, LogFileLine)
+		response := make(chan *admin.LogMessage)
+		globalData.LoggingStreamID, err =
+			globalData.User.AdminLog_subscribe(LogLevel, LogFile, LogFileLine, response)
 		if err != nil {
 			fmt.Printf("Error: %v\n", err)
 			return
@@ -625,13 +621,10 @@ func main() {
 			for {
 				timeout := 10 * time.Second
 				time.Sleep(timeout)
-				ok, err := globalData.User.SendPing(1000)
+				err := globalData.User.Ping()
 
 				if err != nil {
 					fmt.Println("Error sending periodic ping to cjdns:", err)
-					return
-				} else if !ok {
-					fmt.Println("Cjdns did not respond to the periodic ping.")
 					return
 				}
 			}
@@ -642,7 +635,7 @@ func main() {
 				fmt.Println("Error reading log response from cjdns.")
 				return
 			}
-			fmt.Printf(format, counter, input["time"], input["level"], input["file"], input["line"], input["message"])
+			fmt.Printf(format, counter, input.Time, input.Level, input.File, input.Line, input.Message)
 			counter++
 		}
 
@@ -678,14 +671,10 @@ func main() {
 			return
 		}
 		globalData.User = user
-		_, err = globalData.User.Core_exit()
+		err = globalData.User.Core_exit()
 		if err != nil {
 			fmt.Printf("%v\n", err)
 			return
-		}
-		alive := true
-		for ; alive; alive, _ = globalData.User.SendPing(1000) {
-			runtime.Gosched() //play nice
 		}
 		fmt.Println("cjdns is shutting down...")
 
@@ -707,7 +696,7 @@ func main() {
 		k := 1
 		for _, v := range table {
 			if v.Link >= 1 {
-				fmt.Printf("%d IP: %v -- Version: %d -- Path: %s -- Link: %.0f\n", k, v.IP, v.Version, v.Path, v.Link)
+				fmt.Printf("%d IP: %v -- Version: %d -- Path: %s -- Link: %s\n", k, v.IP, v.Version, v.Path, v.Link)
 				k++
 			}
 		}
