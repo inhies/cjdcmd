@@ -89,12 +89,12 @@ func doPeers(user *admin.Conn, target Target) {
 		for _, v := range table {
 			if v.Path.String() == target.Supplied {
 				// We have the IP now
-				tText = target.Supplied + " (" + v.IP + ")"
+				tText = target.Supplied + " (" + v.IP.String() + ")"
 
 				// Try to get the hostname
-				hostname, _ := resolveIP(v.IP)
+				hostname, _ := resolveIP(v.IP.String())
 				if hostname != "" {
-					tText = target.Supplied + " (" + v.IP + " (" + hostname + "))"
+					tText = target.Supplied + " (" + v.IP.String() + " (" + hostname + "))"
 				}
 			}
 		}
@@ -109,14 +109,14 @@ func doPeers(user *admin.Conn, target Target) {
 	for _, node := range table {
 		if usingPath && node.Path.String() != target.Supplied {
 			continue
-		} else if !usingPath && node.IP != target.Target {
+		} else if !usingPath && node.IP.String() != target.Target {
 			continue
 		}
 		for _, nodeB := range table {
-			if isOneHop(node.Path, nodeB.Path) || isOneHop(nodeB.Path, node.Path) {
+			if isOneHop(*node.Path, *nodeB.Path) || isOneHop(*nodeB.Path, *node.Path) {
 				for i, existing := range output {
 					if existing.IP == nodeB.IP {
-						if existing.Path > nodeB.Path {
+						if *existing.Path > *nodeB.Path {
 							table[i] = nodeB
 						}
 						goto alreadyExists
@@ -129,8 +129,8 @@ func doPeers(user *admin.Conn, target Target) {
 	}
 
 	for _, node := range output {
-		hostname, _ := resolveIP(node.IP)
-		tText := node.IP
+		hostname, _ := resolveIP(node.IP.String())
+		tText := node.IP.String()
 		if hostname != "" {
 			tText += " (" + hostname + ")"
 		} else {

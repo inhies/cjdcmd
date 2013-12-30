@@ -27,23 +27,23 @@ type Ping struct {
 
 // Pings a node and generates statistics
 func pingNode(user *admin.Conn, ping *Ping) (err error) {
-	response, err := user.RouterModule_pingNode(ping.Target, PingTimeout)
-
-	if err != nil {
-		return
-	}
+	response, version, err := user.RouterModule_pingNode(ping.Target, PingTimeout)
 
 	ping.Sent++
-	if response.Error == "" {
-		if response.Result == "timeout" {
-			ping.Response = fmt.Sprintf("Timeout from %v after %vms", ping.Target, response.Time)
+	if err == nil {
+		if response >= PingTimeout {
+			ping.Response =
+				fmt.Sprintf("Timeout from %v after %vms",
+					ping.Target, response)
 			ping.Error = "timeout"
 			ping.Failed++
 		} else {
 			ping.Success++
-			ping.Response = fmt.Sprintf("Reply from %v req=%v time=%v ms", ping.Target, ping.Success+ping.Failed, response.Time)
+			ping.Response =
+				fmt.Sprintf("Reply from %v req=%v time=%v ms",
+					ping.Target, ping.Success+ping.Failed, response)
 
-			ping.CTime = float64(response.Time)
+			ping.CTime = float64(response)
 			ping.TTime += ping.CTime
 			ping.TTime2 += ping.CTime * ping.CTime
 			if ping.TMin == 0 {
@@ -57,18 +57,18 @@ func pingNode(user *admin.Conn, ping *Ping) (err error) {
 			}
 
 			if ping.Version == "" {
-				ping.Version = response.Version
+				ping.Version = version
 			}
-			if ping.Version != response.Version {
+			if ping.Version != version {
 				//not likely we'll see this happen but it doesnt hurt to be prepared
 				fmt.Println("Host is sending back mismatched versions")
-				fmt.Println("Old:", ping.Version, "New:", response.Version)
+				fmt.Println("Old:", version, "New:", version)
 			}
 		}
 	} else {
 		ping.Failed++
-		ping.Error = response.Error
-		ping.Response = response.Error
+		ping.Error = err.Error()
+		ping.Response = err.Error()
 		return
 	}
 	return
