@@ -22,6 +22,8 @@ import (
 	"strings"
 )
 
+var NoDNS bool
+
 // Lookup the IP address using HypeDNS
 func lookupHypeDNS(hostname string) (response string, err error) {
 	c := new(dns.Client)
@@ -73,7 +75,7 @@ func reverseHypeDNSLookup(ip string) (response string, err error) {
 func setHypeDNS(hostname string) (response string, err error) {
 	setLoc := "/_hypehost/set?hostname="
 	getLoc := "/_hypehost/get"
-	nodeInfoHost :=  "http://[fc5d:baa5:61fc:6ffd:9554:67f0:e290:7535]:8000"
+	nodeInfoHost := "http://[fc5d:baa5:61fc:6ffd:9554:67f0:e290:7535]:8000"
 
 	if len(hostname) == 0 {
 		// The request is a "get"
@@ -81,8 +83,8 @@ func setHypeDNS(hostname string) (response string, err error) {
 		if err != nil {
 			fmt.Println("Got an error, %s", err)
 			err = fmt.Errorf("Got an error when attempting to retrieve " +
-			"hostname. This is usually because you can't connect to HypeDNS. " +
-			"Try again later")
+				"hostname. This is usually because you can't connect to HypeDNS. " +
+				"Try again later")
 			return "", err
 		}
 		defer resp.Body.Close()
@@ -95,7 +97,7 @@ func setHypeDNS(hostname string) (response string, err error) {
 	if err != nil {
 		fmt.Println("Got an error, %s", err)
 		err = fmt.Errorf("Got an error when attempting to change hostname. " +
-		"Try again later")
+			"Try again later")
 		return "", err
 	}
 	defer resp.Body.Close()
@@ -107,27 +109,27 @@ func setHypeDNS(hostname string) (response string, err error) {
 // Resolve an IP to a domain name using the system DNS settings first, then HypeDNS
 func resolveIP(ip string) (hostname string, err error) {
 	var try2 string
-    if NoDNS {
-        hostname = ip
-    } else {
-        // try the system DNS setup
-        result, _ := net.LookupAddr(ip)
-        if len(result) > 0 {
-            goto end
-        }
+	if NoDNS {
+		hostname = ip
+	} else {
+		// try the system DNS setup
+		result, _ := net.LookupAddr(ip)
+		if len(result) > 0 {
+			goto end
+		}
 
-        // Try HypeDNS
-        try2, err = reverseHypeDNSLookup(ip)
-        if try2 == "" || err != nil {
-            err = fmt.Errorf("Unable to resolve IP address. This is usually caused by not having a route to hypedns. Please try again in a few seconds.")
-            return
-        }
-        result = append(result, try2)
-    end:
-        for _, addr := range result {
-            hostname = addr
-        }
-    }
+		// Try HypeDNS
+		try2, err = reverseHypeDNSLookup(ip)
+		if try2 == "" || err != nil {
+			err = fmt.Errorf("Unable to resolve IP address. This is usually caused by not having a route to hypedns. Please try again in a few seconds.")
+			return
+		}
+		result = append(result, try2)
+	end:
+		for _, addr := range result {
+			hostname = addr
+		}
+	}
 	// Trim the trailing period becuase it annoys me
 	if hostname[len(hostname)-1] == '.' {
 		hostname = hostname[:len(hostname)-1]
