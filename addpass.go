@@ -26,11 +26,35 @@ import (
 
 const safePasswordLength = 31
 
+func init() {
+	AddPasswordCmd.Flags().StringVarP(&ConfFileIn, "file", "f", "",
+		"the cjdroute.conf configuration file to use")
+
+	AddPasswordCmd.Flags().StringVarP(&ConfFileOut, "outfile", "o", "",
+		"the configuration file to save to")
+}
+
 func addPasswordCmd(cmd *cobra.Command, args []string) {
+	if ConfFileIn == "" {
+		cjdnsAdmin, err := loadCjdnsadmin()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "cjdroute.conf not specified with '-f' and could not read cjdnsadmin file")
+			os.Exit(1)
+		}
+
+		if cjdnsAdmin.Config == "" {
+			fmt.Println("Please specify the configuration file with --file or in ~/.cjdnsadmin.")
+			os.Exit(1)
+		}
+
+		ConfFileIn = cjdnsAdmin.Config
+	}
+
 	// Load the config file
 	if Verbose {
 		fmt.Printf("Loading %s...\t", ConfFileIn)
 	}
+
 	conf, err := cjdnsConfig.LoadExtConfig(ConfFileIn)
 	if err != nil {
 		fmt.Println("Error loading config:", err)

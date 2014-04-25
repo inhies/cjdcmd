@@ -27,30 +27,28 @@ import (
 	"strings"
 )
 
+func init() {
+	CjdnsAdminCmd.Flags().StringVarP(&ConfFileIn, "file", "f", "",
+		"the cjdroute.conf file to read password from")
+	CjdnsAdminCmd.Flags().StringVarP(&AdminFileOut, "outfile", "o", "",
+		"the cjdnsadmin file to write to")
+}
+
 func cjdnsAdminCmd(cmd *cobra.Command, args []string) {
 	var cjdnsAdmin *admin.CjdnsAdminConfig
 	var err error
 
 	if ConfFileIn == "" {
-		if AdminFileIn == "" {
-			cjdnsAdmin, err = loadCjdnsadmin()
-			if err != nil {
-				fmt.Println("Unable to load configuration file:", err)
-				os.Exit(1)
-			}
-		} else {
-			cjdnsAdmin, err = readCjdnsadmin(AdminFileIn)
-			if err != nil {
-				fmt.Println("Error loading cjdnsadmin file:", err)
-				os.Exit(1)
-			}
+		cjdnsAdmin, err = loadCjdnsadmin()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "cjdroute.conf specified with '-f' and could not read cjdnsadmin")
+			os.Exit(1)
 		}
 
 		if cjdnsAdmin.Config == "" {
 			fmt.Println("Please specify the configuration file in your .cjdnsadmin file or pass the --file flag.")
 			os.Exit(1)
 		}
-
 		ConfFileIn = cjdnsAdmin.Config
 	}
 

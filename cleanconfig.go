@@ -16,33 +16,29 @@ package main
 
 import (
 	"fmt"
-	"github.com/inhies/go-cjdns/admin"
 	"github.com/inhies/go-cjdns/config"
 	"github.com/spf13/cobra"
 	"os"
 )
 
-func cleanConfigCmd(cmd *cobra.Command, args []string) {
-	var cjdnsAdmin *admin.CjdnsAdminConfig
-	var err error
+func init() {
+	CleanConfigCmd.Flags().StringVarP(&ConfFileIn, "file", "f", "",
+		"the cjdroute.conf configuration file to read")
 
+	CleanConfigCmd.Flags().StringVarP(&ConfFileOut, "outfile", "o", "",
+		"the configuration file to save to")
+}
+
+func cleanConfigCmd(cmd *cobra.Command, args []string) {
 	if ConfFileIn == "" {
-		if AdminFileIn == "" {
-			cjdnsAdmin, err = loadCjdnsadmin()
-			if err != nil {
-				fmt.Println("Unable to load configuration file:", err)
-				return
-			}
-		} else {
-			cjdnsAdmin, err = readCjdnsadmin(AdminFileIn)
-			if err != nil {
-				fmt.Println("Error loading cjdnsadmin file:", err)
-				return
-			}
+		cjdnsAdmin, err := loadCjdnsadmin()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "cjdroute.conf not specified with '-f' and could not read cjdnsadmin file")
+			os.Exit(1)
 		}
 
 		if cjdnsAdmin.Config == "" {
-			fmt.Println("Please specify the configuration file in your .cjdnsadmin file or pass the --file flag.")
+			fmt.Println("Please specify the configuration file with --file or in ~/.cjdnsadmin.")
 			os.Exit(1)
 		}
 
@@ -64,7 +60,7 @@ func cleanConfigCmd(cmd *cobra.Command, args []string) {
 		return
 	}
 
-	if ConfFileIn != "" && ConfFileOut == "" {
+	if ConfFileOut == "" {
 		ConfFileOut = ConfFileIn
 	}
 

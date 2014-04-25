@@ -143,26 +143,6 @@ func init() {
 
 	TracerouteCmd.Flags().BoolVarP(&NmapOutput, "nmap", "x", false, "format output as nmap XML")
 
-	CleanConfigCmd.PersistentFlags().StringVarP(&ConfFileIn, "file", "f", "",
-		"the cjdroute.conf configuration file to read")
-	CleanConfigCmd.PersistentFlags().StringVarP(&ConfFileOut, "outfile", "o", "",
-		"the configuration file to save to")
-
-	CjdnsAdminCmd.PersistentFlags().StringVarP(&ConfFileIn, "file", "f", "",
-		"the cjdroute.conf file to read password from")
-	CjdnsAdminCmd.PersistentFlags().StringVarP(&AdminFileOut, "outfile", "o", "",
-		"the cjdnsadmin file to write to")
-
-	AddPeerCmd.PersistentFlags().StringVarP(&ConfFileIn, "file", "f", "",
-		"the cjdroute.conf configuration file to")
-	AddPeerCmd.PersistentFlags().StringVarP(&ConfFileOut, "outfile", "o", "",
-		"the configuration file to save to")
-
-	AddPasswordCmd.PersistentFlags().StringVarP(&ConfFileIn, "file", "f", "",
-		"the cjdroute.conf configuration file to use")
-	AddPasswordCmd.PersistentFlags().StringVarP(&ConfFileOut, "outfile", "o", "",
-		"the configuration file to save to")
-
 	rootCmd.AddCommand(
 		PingCmd,
 		RouteCmd,

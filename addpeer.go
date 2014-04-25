@@ -24,11 +24,34 @@ import (
 	"strings"
 )
 
+func init() {
+	AddPeerCmd.Flags().StringVarP(&ConfFileIn, "file", "f", "",
+		"the cjdroute.conf configuration file to")
+	AddPeerCmd.Flags().StringVarP(&ConfFileOut, "outfile", "o", "",
+		"the configuration file to save to")
+}
+
 func addPeerCmd(cmd *cobra.Command, args []string) {
 	if len(args) == 0 {
 		cmd.Usage()
 		os.Exit(1)
 	}
+
+	if ConfFileIn == "" {
+		cjdnsAdmin, err := loadCjdnsadmin()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "cjdroute.conf not specified with '-f' and could not read cjdnsadmin file")
+			os.Exit(1)
+		}
+
+		if cjdnsAdmin.Config == "" {
+			fmt.Println("Please specify the configuration file with --file or in ~/.cjdnsadmin.")
+			os.Exit(1)
+		}
+
+		ConfFileIn = cjdnsAdmin.Config
+	}
+
 	for _, input := range args {
 
 		// Strip comments, just in case, and surround with {} to make it valid JSON
@@ -46,19 +69,6 @@ func addPeerCmd(cmd *cobra.Command, args []string) {
 			return
 		}
 
-		// Load the config file
-		if ConfFileIn == "" {
-			cjdAdmin, err := loadCjdnsadmin()
-			if err != nil {
-				fmt.Println("Unable to load configuration file:", err)
-				return
-			}
-			ConfFileIn = cjdAdmin.Config
-			if ConfFileIn == "" {
-				fmt.Println("Please specify the configuration file in your .cjdnsadmin file or pass the --file flag.")
-				return
-			}
-		}
 		fmt.Printf("Loading configuration from: %v... ", ConfFileIn)
 		conf, err := cjdnsConfig.LoadExtConfig(ConfFileIn)
 		if err != nil {
@@ -193,6 +203,10 @@ func addPeerCmd(cmd *cobra.Command, args []string) {
 		if err != nil {
 			fmt.Println("Error getting permissions for original file:", err)
 			return
+		}
+
+		if ConfFileOut == "" {
+			ConfFileOut = ConfFileIn
 		}
 
 		// Check if the output file exists and prompt befoer overwriting
