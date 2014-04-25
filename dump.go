@@ -21,10 +21,14 @@ import (
 	"os"
 )
 
-var Pretty bool
+var (
+	Pretty    bool
+	StopLevel int
+)
 
 func init() {
 	DumpCmd.Flags().BoolVarP(&Pretty, "pretty", "p", false, "pretty output")
+	DumpCmd.Flags().IntVarP(&StopLevel, "level", "l", 0, "stop after this many levels")
 }
 
 func dumpCmd(cmd *cobra.Command, args []string) {
@@ -60,10 +64,15 @@ func dumpTablePretty(table admin.Routes) {
 
 	fmt.Printf("%s┐\n", table[0].Path)
 
-	printPrettySubtable(table[1:], "")
+	printPrettySubtable(table[1:], "", 0, StopLevel)
 }
 
-func printPrettySubtable(table admin.Routes, spacer string) {
+func printPrettySubtable(table admin.Routes, spacer string, curLevel, stop int) {
+	if curLevel == stop {
+		return
+	}
+	curLevel++
+
 	var level []admin.Routes
 
 	for i, here := range table {
@@ -93,22 +102,31 @@ func printPrettySubtable(table admin.Routes, spacer string) {
 	for _, sublevel := range level[:len(level)-1] {
 		here := sublevel[0]
 		if len(sublevel) == 1 {
-			fmt.Printf("%s%s└─%s\n", here.Path, spacer, here.IP)
+			prettyPrintRoute("%s%s└─ %s\n", spacer, here)
 			return
 		}
 
-		fmt.Printf("%s%s├┬%s\n", here.Path, spacer, here.IP)
-		printPrettySubtable(sublevel[1:], spacer+"│")
+		prettyPrintRoute("%s%s├┬ %s\n", spacer, here)
+		printPrettySubtable(sublevel[1:], spacer+"│", curLevel, stop)
 	}
 
 	sublevel := level[len(level)-1]
 	here := sublevel[0]
 	if len(sublevel) == 1 {
-		fmt.Printf("%s%s└─%s\n", here.Path, spacer, here.IP)
+		prettyPrintRoute("%s%s└─ %s\n", spacer, here)
 		return
 	}
-	
-	fmt.Printf("%s%s└┬%s\n", here.Path, spacer, here.IP)
-	printPrettySubtable(sublevel[1:], spacer+" ")
+
+	prettyPrintRoute("%s%s└┬ %s\n", spacer, here)
+	printPrettySubtable(sublevel[1:], spacer+" ", curLevel, stop)
 }
 
+func prettyPrintRoute(format, spacer string, route *admin.Route) {
+	ip := route.IP.String()
+	host, err := resolveIP(ip)
+	if err == nil {
+		fmt.Fprintf(os.Stderr, format, route.Path, spacer, host)
+	} else {
+		fmt.Fprintf(os.Stderr, format, route.Path, spacer, ip)
+	}
+}

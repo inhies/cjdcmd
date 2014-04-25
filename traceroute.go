@@ -25,6 +25,10 @@ import (
 	"time"
 )
 
+func init() {
+	TracerouteCmd.Flags().BoolVarP(&NmapOutput, "nmap", "x", false, "print result in nmap XML to stdout")
+}
+
 func tracerouteCmd(cmd *cobra.Command, args []string) {
 	if len(args) == 0 {
 		cmd.Usage()
@@ -56,7 +60,7 @@ func tracerouteCmd(cmd *cobra.Command, args []string) {
 		targets = append(targets, target)
 	}
 
-	c := Connect();
+	c := Connect()
 	table, err := c.NodeStore_dumpTable()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Failed to get routing table:", err)

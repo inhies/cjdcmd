@@ -108,32 +108,48 @@ func setHypeDNS(hostname string) (response string, err error) {
 
 // Resolve an IP to a domain name using the system DNS settings first, then HypeDNS
 func resolveIP(ip string) (hostname string, err error) {
-	var try2 string
-	if NoDNS {
-		hostname = ip
-	} else {
+	// this mutex is in resolve.go
+	var ok bool
+	rMutex.RLock()
+	hostname, ok = rCache[ip]
+	rMutex.RUnlock()
+	if ok {
+		return
+	}
+	rMutex.Lock()
+	defer rMutex.Unlock()
+	hostname, ok = rCache[ip]
+	if ok {
+		return
+	}
+
+	if !NoDNS {
 		// try the system DNS setup
 		result, _ := net.LookupAddr(ip)
-		if len(result) > 0 {
-			goto end
-		}
 
-		// Try HypeDNS
-		try2, err = reverseHypeDNSLookup(ip)
-		if try2 == "" || err != nil {
-			err = fmt.Errorf("Unable to resolve IP address. This is usually caused by not having a route to hypedns. Please try again in a few seconds.")
+		/*
+			// Try HypeDNS
+			try2, err = reverseHypeDNSLookup(ip)
+			if try2 == "" || err != nil {
+				err = fmt.Errorf("Unable to resolve IP address. This is usually caused by not having a route to hypedns. Please try again in a few seconds.")
+				return
+			}
+			result = append(result, try2)
+		*/
+
+		if len(result) != 0 {
+			hostname = result[0]
+
+			// Trim the trailing period becuase it annoys me
+			if hostname[len(hostname)-1] == '.' {
+				hostname = hostname[:len(hostname)-1]
+			}
+			rCache[ip] = hostname
 			return
 		}
-		result = append(result, try2)
-	end:
-		for _, addr := range result {
-			hostname = addr
-		}
 	}
-	// Trim the trailing period becuase it annoys me
-	if hostname[len(hostname)-1] == '.' {
-		hostname = hostname[:len(hostname)-1]
-	}
+	hostname = ip
+	rCache[ip] = hostname
 	return
 }
 

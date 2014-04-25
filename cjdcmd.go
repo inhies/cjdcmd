@@ -141,8 +141,6 @@ var (
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&Verbose, "verbose", "v", false, "verbose output")
 
-	TracerouteCmd.Flags().BoolVarP(&NmapOutput, "nmap", "x", false, "format output as nmap XML")
-
 	rootCmd.AddCommand(
 		PingCmd,
 		RouteCmd,
