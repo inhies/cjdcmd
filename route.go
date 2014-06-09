@@ -21,39 +21,33 @@ import (
 )
 
 func routeCmd(cmd *cobra.Command, args []string) {
-	target, err := setTarget(args, true)
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-	
 	c := Connect()
-
-	var tText string
-	hostname, _ := resolveIP(target.Target)
-	if hostname != "" {
-		tText = target.Target + " (" + hostname + ")"
-	} else {
-		tText = target.Target
-	}
-	fmt.Printf("Showing all routes to %v\n", tText)
 
 	table, err := c.NodeStore_dumpTable()
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-
 	table.SortByQuality()
 
-	count := 0
-	for _, v := range table {
-		if v.IP.String() == target.Target || v.Path.String() == target.Target {
-			if v.Link > 1 {
-				fmt.Printf("IP: %v -- Version: %d -- Path: %s -- Link: %.0f\n", v.IP, v.Version, v.Path, v.Link)
-				count++
+	for _, arg := range args {
+		hostname, ip, _ := resolve(arg)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Could not resolve %s, %s\n", arg, err)
+			continue
+		}
+
+		fmt.Fprintf(os.Stdout, "Showing all routes to %s (%s)\n", hostname, ip)
+
+		count := 0
+		for _, r := range table {
+			if ip.Equal(*r.IP) {
+				if r.Link > 1 {
+					fmt.Fprintf(os.Stdout, "Path: %s -- Link: %d\n", r.Path, r.Link)
+					count++
+				}
 			}
 		}
+		fmt.Fprintf(os.Stdout, "Found %d routes\n\n", count)
 	}
-	fmt.Println("Found", count, "routes")
 }

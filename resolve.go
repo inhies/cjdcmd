@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"sync"
 )
 
@@ -74,5 +75,72 @@ func resolve(host string) (hostname string, ip net.IP, err error) {
 		}
 		err = errors.New("no fc::/8 address found")
 	}
+	return
+}
+
+// Resolve an IP to a domain name using the system DNS settings first, then HypeDNS
+func resolveIP(ip string) (hostname string, err error) {
+	if !ReverseLookup {
+		return ip, nil
+	}
+	
+	var ok bool
+
+	rMutex.RLock()
+	hostname, ok = rCache[ip]
+	rMutex.RUnlock()
+	if ok {
+		return
+	}
+
+	rMutex.Lock()
+	defer rMutex.Unlock()
+	hostname, ok = rCache[ip]
+	if ok {
+		return
+	}
+
+	// try the system DNS setup
+	result, _ := net.LookupAddr(ip)
+	
+	if len(result) != 0 {
+		hostname = result[0]
+		
+		// Trim the trailing period becuase it annoys inhies
+		hostname = strings.TrimRight(hostname, ".")
+
+		rCache[ip] = hostname
+		return
+	}
+
+	return ip, nil
+}
+
+// Resolve a hostname to an IP address using the system DNS settings first, then HypeDNS
+func resolveHost(hostname string) (ip string, err error) {
+	var ok bool
+
+	rMutex.RLock()
+	ip, ok = rCache[hostname]
+	rMutex.RUnlock()
+	if ok {
+		return
+	}
+
+	rMutex.Lock()
+	defer rMutex.Unlock()
+	ip, ok = rCache[hostname]
+	if ok {
+		return
+	}
+
+	// Try the system DNS setup
+	result, err := net.LookupHost(hostname)
+	if len(result) != 0 {
+		ip = result[0]
+		rCache[hostname] = ip
+		return
+	}
+
 	return
 }

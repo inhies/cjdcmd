@@ -95,7 +95,6 @@ func readCjdnsadmin(file string) (admin *admin.CjdnsAdminConfig, err error) {
 
 }
 
-// Check if a file exists
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	if err == nil {
@@ -139,70 +138,6 @@ func padIPv6(ip net.IP) string {
 	return strings.Join(parts, ":")
 }
 
-/*
-// Dumps the entire routing table and structures it
-func getTable(user *cjdns.Conn) cjdns.Routes {
-	response, err := user.NodeStore_dumpTable()
-	if err != nil {
-		fmt.Printf("%v\n", err)
-		return nil
-	}
-	return response
-}
-*/
-/*
-		page := 0
-		var more int64
-		table = make([]*Route, 0)
-		for more = 1; more != 0; page++ {
-			response, err := user.NodeStore_dumpTable(page)
-			if err != nil {
-				fmt.Printf("%v\n", err)
-				return
-			}
-			// If an error field exists, and we have an error, return it
-			if _, ok := response["error"]; ok {
-				if response["error"] != "none" {
-					err = fmt.Errorf(response["error"].(string))
-					fmt.Printf("Error: %v\n", err)
-					return
-				}
-			}
-			//Thanks again to SashaCrofter for the table parsing
-			rawTable := response["routingTable"].([]interface{})
-			for i := range rawTable {
-				item := rawTable[i].(map[string]interface{})
-				rPath := item["path"].(string)
-				sPath := strings.Replace(rPath, ".", "", -1)
-				bPath, err := hex.DecodeString(sPath)
-				if err != nil || len(bPath) != 8 {
-					//If we get an error, or the
-					//path is not 64 bits, discard.
-					//This should also prevent
-					//runtime errors.
-					continue
-				}
-				path := binary.BigEndian.Uint64(bPath)
-				table = append(table, &Route{
-					IP:      item["ip"].(string),
-					RawPath: path,
-					Path:    rPath,
-					RawLink: item["link"].(int64),
-					Link:    float64(item["link"].(int64)) / magicalLinkConstant,
-					Version: item["version"].(int64),
-				})
-
-			}
-
-			if response["more"] != nil {
-				more = response["more"].(int64)
-			} else {
-				break
-			}
-		}
-	return
-*/
-
 type Target struct {
 	Target   string
 	Supplied string
@@ -211,52 +146,6 @@ type Target struct {
 func validIP(input string) (result bool)   { return ipRegex.MatchString(input) }
 func validPath(input string) (result bool) { return pathRegex.MatchString(input) }
 func validHost(input string) (result bool) { return hostRegex.MatchString(input) }
-
-// Sets target.Target to the requried IP or cjdns path
-func setTarget(data []string, usePath bool) (target Target, err error) {
-	if len(data) == 0 {
-		err = fmt.Errorf("Invalid target specified")
-		return
-	}
-	input := data[0]
-	if input != "" {
-
-		if validIP(input) {
-			target.Supplied = data[0]
-			target.Target = padIPv6(net.ParseIP(input))
-			return
-
-		} else if validPath(input) && usePath {
-			target.Target = input
-			target.Supplied = data[0]
-			return
-
-		} else if validHost(input) {
-			var ips []string
-			ips, err = resolveHost(input)
-			if err != nil {
-				return
-			}
-			// Return the first result
-			for _, addr := range ips {
-				target.Target = addr
-				target.Supplied = input
-				return
-			}
-
-		} else {
-			err = fmt.Errorf("Invalid IPv6 address, cjdns path, or hostname")
-			return
-		}
-	}
-
-	if usePath {
-		err = fmt.Errorf("You must specify an IPv6 address, hostname, or cjdns path")
-		return
-	}
-	err = fmt.Errorf("You must specify an IPv6 address or hostname")
-	return
-}
 
 // randString returns a random alphanumeric string where length is <= max >= min
 func randString(min, max int) string {

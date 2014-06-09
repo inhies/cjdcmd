@@ -62,23 +62,24 @@ func dumpTablePlain(table admin.Routes) {
 func dumpTablePretty(table admin.Routes) {
 	table.SortByPath()
 
-	fmt.Printf("%s┐\n", table[0].Path)
+	fmt.Fprintf(os.Stdout, "%s┐\n", table[0].Path)
 
 	printPrettySubtable(table[1:], "", 0, StopLevel)
 }
 
 func printPrettySubtable(table admin.Routes, spacer string, curLevel, stop int) {
+	curLevel++
 	if curLevel == stop {
 		return
 	}
-	curLevel++
 
-	var level []admin.Routes
+	var sublevels []admin.Routes
 
 	for i, here := range table {
 		if here == nil {
 			continue
 		}
+
 		// Hit each entry once
 		table[i] = nil
 
@@ -96,21 +97,35 @@ func printPrettySubtable(table admin.Routes, spacer string, curLevel, stop int) 
 			}
 		}
 
-		level = append(level, sublevel)
+		sublevels = append(sublevels, sublevel)
 	}
 
-	for _, sublevel := range level[:len(level)-1] {
+	// recurse through sublevels
+
+	if len(sublevels) == 1 {
+		sublevel := sublevels[0]
 		here := sublevel[0]
 		if len(sublevel) == 1 {
 			prettyPrintRoute("%s%s└─ %s\n", spacer, here)
-			return
+		} else {
+			prettyPrintRoute("%s%s└┬ %s\n", spacer, here)
+			printPrettySubtable(sublevel[1:], spacer+" ", curLevel, stop)
+		}
+		return
+	}
+
+	for _, sublevel := range sublevels[:len(sublevels)-1] {
+		here := sublevel[0]
+		if len(sublevel) == 1 {
+			prettyPrintRoute("%s%s├─ %s\n", spacer, here)
+			continue
 		}
 
 		prettyPrintRoute("%s%s├┬ %s\n", spacer, here)
 		printPrettySubtable(sublevel[1:], spacer+"│", curLevel, stop)
 	}
 
-	sublevel := level[len(level)-1]
+	sublevel := sublevels[len(sublevels)-1]
 	here := sublevel[0]
 	if len(sublevel) == 1 {
 		prettyPrintRoute("%s%s└─ %s\n", spacer, here)
@@ -125,8 +140,8 @@ func prettyPrintRoute(format, spacer string, route *admin.Route) {
 	ip := route.IP.String()
 	host, err := resolveIP(ip)
 	if err == nil {
-		fmt.Fprintf(os.Stderr, format, route.Path, spacer, host)
+		fmt.Fprintf(os.Stdout, format, route.Path, spacer, host)
 	} else {
-		fmt.Fprintf(os.Stderr, format, route.Path, spacer, ip)
+		fmt.Fprintf(os.Stdout, format, route.Path, spacer, ip)
 	}
 }

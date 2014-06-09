@@ -34,8 +34,7 @@ var (
 	ConfFileIn, ConfFileOut   string
 	AdminFileIn, AdminFileOut string
 
-	NmapOutput bool
-	Verbose    bool
+	NmapOutput, Verbose, ReverseLookup bool
 )
 
 var (
@@ -140,6 +139,7 @@ var (
 
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&Verbose, "verbose", "v", false, "verbose output")
+	rootCmd.PersistentFlags().BoolVarP(&ReverseLookup, "resolve", "r", false, "reverse resolve IP addresses")
 
 	rootCmd.AddCommand(
 		PingCmd,
