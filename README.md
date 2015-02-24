@@ -89,6 +89,18 @@ Next we need to tell our system where to look for Go packages and compiled progr
 
 Now, to make the changes take effect immediately, you can either run `$ source ~/.bashrc` or just paste those two lines you added to the file on your command line. You should now be setup! Try typing `$ echo $GOPATH` and make sure you see the folder you specified. If you have any problems, try re-reading the [official documentation](http://golang.org/doc/code.html#tmp_2).
 
+### Install Mercurial
+
+Once you have your folders configured, install Mercurial.
+
+Mac: 
+
+    brew install mercurial
+    
+Linux:
+
+    apt-get install mercurial
+
 ### Install cjdcmd
 
 Once you have Go installed, installing new programs and packages couldn't be easier. Simply run the following command to have cjdcmd download, build, and install:
